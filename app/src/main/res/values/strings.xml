@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">TowerDefenseECS</string>
+    <!-- 在 strings.xml 中添加 -->
+    <string name="gold_text">金币: %d</string>
+    <string name="health_text">生命: %d</string>
+    <string name="wave_text">波次: %d</string>
+    <string name="pause_button">暂停</string>
+    <string name="resume_button">继续</string>
+    <string name="spawn_enemy">出怪</string>
+    <string name="game_started">游戏开始</string>
 </resources>
