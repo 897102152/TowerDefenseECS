@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#2b2b2b">
+
+    <!-- 顶部控制栏 - 使用更紧凑的布局 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#3c3c3c">
+
+        <!-- 第一行：主要控制按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="4dp">
+
+            <Button
+                android:id="@+id/btnStart"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="出怪"
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:background="#4CAF50" />
+
+            <Button
+                android:id="@+id/btnPause"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="暂停"
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:background="#FF9800" />
+
+
+
+        </LinearLayout>
+
+        <!-- 第二行：状态信息 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="2dp">
+
+            <TextView
+                android:id="@+id/tvGold"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="金币: 100"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:textColor="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvHealth"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="生命: 100"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:textColor="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvWave"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="波次: 1"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:textColor="@android:color/white" />
+
+        </LinearLayout>
+
+        <!-- 第三行：塔选择 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="4dp">
+
+            <Button
+                android:id="@+id/btnArcherTower"
+                android:layout_width="0dp"
+                android:layout_height="35dp"
+                android:layout_weight="1"
+                android:text="弓箭"
+                android:textSize="12sp"
+                android:textColor="@android:color/white"
+                android:background="#795548" />
+
+            <Button
+                android:id="@+id/btnCannonTower"
+                android:layout_width="0dp"
+                android:layout_height="35dp"
+                android:layout_weight="1"
+                android:text="炮塔"
+                android:textSize="12sp"
+                android:textColor="@android:color/white"
+                android:background="#607D8B" />
+
+            <Button
+                android:id="@+id/btnMageTower"
+                android:layout_width="0dp"
+                android:layout_height="35dp"
+                android:layout_weight="1"
+                android:text="法师"
+                android:textSize="12sp"
+                android:textColor="@android:color/white"
+                android:background="#9C27B0" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- 游戏视图 - 使用剩余所有空间 -->
+    <com.example.towerdefense.view.GameView
+        android:id="@+id/gameView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>
