@@ -144,4 +144,18 @@ public class World {
     public List<Entity> getAllEntities() {
         return new ArrayList<>(entities);
     }
+    /**
+     * 获取所有包含指定组件的实体
+     * @param componentClass 组件类
+     * @return 包含该组件的实体列表
+     */
+    public List<Entity> getEntitiesWithComponent(Class<? extends Component> componentClass) {
+        List<Entity> result = new ArrayList<>();
+        for (Entity entity : entities) {
+            if (entity.hasComponent(componentClass)) {
+                result.add(entity);
+            }
+        }
+        return result;
+    }
 }

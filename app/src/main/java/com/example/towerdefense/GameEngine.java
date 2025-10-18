@@ -17,6 +17,7 @@ import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Tower;
 import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Enemy;
+import com.example.towerdefense.components.Path; // 新增导入
 
 // 系统导入 - 处理游戏逻辑
 import com.example.towerdefense.systems.MovementSystem;
@@ -24,7 +25,7 @@ import com.example.towerdefense.systems.AttackSystem;
 import com.example.towerdefense.systems.SpawnSystem;
 
 import java.util.Random;
-
+import android.graphics.Color;
 /**
  * 游戏引擎主类 - 采用ECS(Entity-Component-System)架构
  * 负责管理游戏循环、实体创建、系统更新和游戏状态
@@ -65,6 +66,8 @@ public class GameEngine {
         setupSystems();
         // 创建初始的防御塔
         createInitialTowers();
+        // 创建路径实体
+        createPaths();
     }
 
     /**
@@ -80,6 +83,62 @@ public class GameEngine {
     }
 
     /**
+     * 创建路径实体 - 初始化游戏中的移动路径
+     */
+    private void createPaths() {
+        // 创建路径A - 较长的路径
+        Entity pathA = world.createEntity();
+        pathA.addComponent(new Path(
+                Path.PathTag.PATH_A,
+                new float[][]{
+                        {0.3f, 0.3f},  // 10%宽度, 10%高度
+                        {0.7f, 0.3f},  // 30%宽度, 10%高度
+                        {0.7f, 0.5f},  // 30%宽度, 30%高度
+                        {0.9f, 0.5f},  // 10%宽度, 30%高度
+
+                },
+                Color.GRAY,
+                10f
+        ));
+
+        // 创建路径B - 较短的路径
+        Entity pathB = world.createEntity();
+        pathB.addComponent(new Path(
+                Path.PathTag.PATH_B,
+                new float[][]{
+                        {0.3f, 0.7f},  // 10%宽度, 30%高度
+                        {0.7f, 0.7f},  // 30%宽度, 30%高度
+                        {0.7f, 0.5f},  // 30%宽度, 50%高度
+                        {0.9f, 0.5f}   // 10%宽度, 50%高度
+                },
+                Color.rgb(100, 100, 255), // 蓝色系
+                10f
+        ));
+
+        // 可选：创建更多路径
+        // createAdditionalPaths();
+    }
+
+    /**
+     * 创建额外路径（可选）- 用于扩展游戏
+
+    private void createAdditionalPaths() {
+        // 路径C - 对角线路径
+        Entity pathC = world.createEntity();
+        pathC.addComponent(new Path(
+                Path.PathTag.PATH_C,
+                new float[][]{
+                        {0.1f, 0.1f},  // 10%宽度, 10%高度
+                        {0.5f, 0.3f},  // 50%宽度, 30%高度
+                        {0.3f, 0.5f},  // 30%宽度, 50%高度
+                        {0.7f, 0.7f}   // 70%宽度, 70%高度
+                },
+                Color.rgb(255, 100, 100), // 红色系
+                8f
+        ));
+    }
+     */
+    /**
      * 手动生成敌人 - 用于测试或特定触发条件
      * 在随机位置生成随机类型的敌人
      */
@@ -91,6 +150,10 @@ public class GameEngine {
             // 随机选择敌人类型
             Enemy.Type[] types = Enemy.Type.values();
             Enemy.Type type = types[random.nextInt(types.length)];
+
+            // 随机选择路径
+            Path.PathTag[] pathTags = Path.PathTag.values();
+            Path.PathTag pathTag = pathTags[random.nextInt(pathTags.length)];
 
             // 根据敌人类型设置属性
             int health = 0;
@@ -120,10 +183,11 @@ public class GameEngine {
 
             // 为敌人实体添加必要的组件
             // Transform组件：定义敌人在游戏世界中的位置
+            // 注意：这里应该使用路径起点的实际坐标，但暂时使用固定位置
             enemy.addComponent(new Transform(100, 100));
             // Health组件：定义敌人的生命值
             enemy.addComponent(new Health(health));
-            // Enemy组件：定义敌人的类型、移动速度和击败奖励
+            // Enemy组件：定义敌人的类型、移动速度和击败奖励，包含路径标签
             enemy.addComponent(new Enemy(type, speed, reward));
 
             // 通知UI层游戏状态已更新，需要重绘
@@ -306,5 +370,16 @@ public class GameEngine {
      */
     public boolean isRunning() {
         return isRunning;
+    }
+
+    /**
+     * 获取路径实体（可选）- 用于其他系统访问路径数据
+     * @param pathTag 路径标签
+     * @return 对应的路径实体，如果不存在返回null
+     */
+    public Entity getPathEntity(Path.PathTag pathTag) {
+        // 这里需要实现从世界中查找对应路径标签的实体
+        // 由于我们目前没有路径管理系统，这个方法需要后续实现
+        return null;
     }
 }
