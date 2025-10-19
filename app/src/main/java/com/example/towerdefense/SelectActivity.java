@@ -7,6 +7,9 @@ import androidx.appcompat.app.AppCompatActivity;
 
 
 public class SelectActivity extends AppCompatActivity{
+
+    public static final int level_training = 0;  // 训练关id
+    public static final int LEVEL_01 = 1;  // 正式关01 id
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // 调用父类 onCreate 方法，执行必要的初始化
@@ -30,7 +33,8 @@ public class SelectActivity extends AppCompatActivity{
             // SelectActivity.this 表示当前Activity的上下文
             // com.example.towerdefense.view.GameActivity.class 表示要启动的目标Activity
             Intent intent = new Intent(SelectActivity.this, com.example.towerdefense.view.GameActivity.class);
-
+            intent.putExtra("LEVEL_ID", level_training);
+            intent.putExtra("LEVEL_NAME", "教学关");
             // 启动目标Activity，开始游戏
             startActivity(intent);
 
@@ -42,7 +46,9 @@ public class SelectActivity extends AppCompatActivity{
             // SelectActivity.this 表示当前Activity的上下文
             // com.example.towerdefense.view.GameActivity.class 表示要启动的目标Activity
             Intent intent = new Intent(SelectActivity.this, com.example.towerdefense.view.GameActivity.class);
-
+            intent.putExtra("LEVEL_ID", level_training);
+            //暂时统一为教学关
+            intent.putExtra("LEVEL_NAME", "第一关");
             // 启动目标Activity，开始游戏
             startActivity(intent);
 

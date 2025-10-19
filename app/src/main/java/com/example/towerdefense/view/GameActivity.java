@@ -26,6 +26,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     // UI控件
     private Button btnStart, btnPause;
     private TextView tvGold, tvHealth, tvWave;
+    private int currentLevelId;
+    private String currentLevelName;
+    // 获取从SelectActivity传递过来的关卡信息
+
 
     /**
      * Activity创建时的回调方法
@@ -34,6 +38,16 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Bundle extras = getIntent().getExtras();
+        if (extras != null) {
+            currentLevelId = extras.getInt("LEVEL_ID", 0); // 默认训练关
+            currentLevelName = extras.getString("LEVEL_NAME", "教学关");
+        } else {
+            // 如果没有传递关卡信息，使用默认值
+            currentLevelId = 0;
+            currentLevelName = "训练模式";
+        }
 
         // 设置全屏显示，提供沉浸式游戏体验
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
@@ -148,11 +162,19 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     private void setupGameEngine() {
         // 创建游戏引擎实例
-        gameEngine = new GameEngine(this);
+        gameEngine = new GameEngine(this,currentLevelId);
         // 设置游戏状态更新监听器（当前Activity）
         gameEngine.setUpdateListener(this);
         // 将游戏引擎设置到游戏视图中
         gameView.setGameEngine(gameEngine);
+
+        // 创建游戏引擎时传入关卡ID
+        gameEngine = new GameEngine(this, currentLevelId);
+        gameEngine.setUpdateListener(this);
+        gameView.setGameEngine(gameEngine);
+
+        // 可以在UI上显示当前关卡名称
+        Toast.makeText(this, "当前关卡: " + currentLevelName, Toast.LENGTH_SHORT).show();
     }
 
     /**

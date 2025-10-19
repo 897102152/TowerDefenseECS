@@ -1,53 +1,38 @@
-/**
- * 游戏引擎主类 - 采用ECS(Entity-Component-System)架构
- * 负责管理游戏循环、实体创建、系统更新和游戏状态
- */
 package com.example.towerdefense;
 
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 
-// ECS 架构相关导入
 import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.ecs.Entity;
-
-// 组件导入 - 定义实体的数据和属性
 import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Tower;
 import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Enemy;
-import com.example.towerdefense.components.Path; // 新增导入
-
-// 系统导入 - 处理游戏逻辑
+import com.example.towerdefense.components.Path;
 import com.example.towerdefense.systems.MovementSystem;
 import com.example.towerdefense.systems.AttackSystem;
 import com.example.towerdefense.systems.SpawnSystem;
+import com.example.towerdefense.systems.LevelSystem;
 
 import java.util.Random;
-import android.graphics.Color;
+
 /**
  * 游戏引擎主类 - 采用ECS(Entity-Component-System)架构
  * 负责管理游戏循环、实体创建、系统更新和游戏状态
  */
 public class GameEngine {
-    // ECS世界，管理所有实体和系统
     private final World world;
-    // Android主线程处理器，用于游戏循环
     private final Handler gameHandler;
-    // 游戏循环任务
     private Runnable gameLoop;
-    // 游戏运行状态标志
     private boolean isRunning = false;
-    // UI更新回调接口
     private GameUpdateListener updateListener;
-    // 随机数生成器，用于敌人生成等
     private final Random random = new Random();
 
-    /**
-     * 游戏状态更新监听器接口
-     * 用于通知UI层游戏状态发生变化需要重绘
-     */
+    // 新增：关卡系统
+    private LevelSystem levelSystem;
+
     public interface GameUpdateListener {
         void onGameStateUpdated(World world);
     }
@@ -55,254 +40,159 @@ public class GameEngine {
     /**
      * 构造函数 - 初始化游戏引擎
      * @param context Android上下文
+     * @param levelId 关卡ID
      */
-    public GameEngine(Context context) {
-        // 创建ECS世界实例
+    public GameEngine(Context context, int levelId) {
         world = new World();
-        // 获取主线程的Handler，确保UI操作在主线程执行
         gameHandler = new Handler(Looper.getMainLooper());
 
+        // 初始化关卡系统
+        setupLevelSystem(levelId);
         // 初始化游戏系统
         setupSystems();
-        // 创建初始的防御塔
-        createInitialTowers();
-        // 创建路径实体
-        createPaths();
     }
 
     /**
-     * 设置游戏系统 - 添加ECS系统中处理游戏逻辑的各个系统
+     * 设置关卡系统
+     */
+    private void setupLevelSystem(int levelId) {
+        // 创建关卡系统
+        levelSystem = new LevelSystem(levelId);
+        // 初始化关卡（创建路径、初始塔等）
+        levelSystem.initializeLevel(world);
+    }
+
+    /**
+     * 设置游戏系统
      */
     private void setupSystems() {
-        // 敌人生成系统 - 负责定期生成敌人
         world.addSystem(new SpawnSystem());
-        // 移动系统 - 处理敌人的移动逻辑
         world.addSystem(new MovementSystem());
-        // 攻击系统 - 处理塔的攻击逻辑和敌人的受伤逻辑
         world.addSystem(new AttackSystem());
+        // 可以添加关卡系统到世界系统中，如果它需要每帧更新的话
+        // world.addSystem(levelSystem);
     }
 
     /**
-     * 创建路径实体 - 初始化游戏中的移动路径
-     */
-    private void createPaths() {
-        // 创建路径A - 较长的路径
-        Entity pathA = world.createEntity();
-        pathA.addComponent(new Path(
-                Path.PathTag.PATH_A,
-                new float[][]{
-                        {0.3f, 0.3f},  // 10%宽度, 10%高度
-                        {0.7f, 0.3f},  // 30%宽度, 10%高度
-                        {0.7f, 0.5f},  // 30%宽度, 30%高度
-                        {0.9f, 0.5f},  // 10%宽度, 30%高度
-
-                },
-                Color.GRAY,
-                10f
-        ));
-
-        // 创建路径B - 较短的路径
-        Entity pathB = world.createEntity();
-        pathB.addComponent(new Path(
-                Path.PathTag.PATH_B,
-                new float[][]{
-                        {0.3f, 0.7f},  // 10%宽度, 30%高度
-                        {0.7f, 0.7f},  // 30%宽度, 30%高度
-                        {0.7f, 0.5f},  // 30%宽度, 50%高度
-                        {0.9f, 0.5f}   // 10%宽度, 50%高度
-                },
-                Color.rgb(100, 100, 255), // 蓝色系
-                10f
-        ));
-
-        // 可选：创建更多路径
-        // createAdditionalPaths();
-    }
-
-    /**
-     * 创建额外路径（可选）- 用于扩展游戏
-
-    private void createAdditionalPaths() {
-        // 路径C - 对角线路径
-        Entity pathC = world.createEntity();
-        pathC.addComponent(new Path(
-                Path.PathTag.PATH_C,
-                new float[][]{
-                        {0.1f, 0.1f},  // 10%宽度, 10%高度
-                        {0.5f, 0.3f},  // 50%宽度, 30%高度
-                        {0.3f, 0.5f},  // 30%宽度, 50%高度
-                        {0.7f, 0.7f}   // 70%宽度, 70%高度
-                },
-                Color.rgb(255, 100, 100), // 红色系
-                8f
-        ));
-    }
-     */
-    /**
-     * 手动生成敌人 - 用于测试或特定触发条件
-     * 在随机位置生成随机类型的敌人
+     * 手动生成敌人
      */
     public void spawnEnemyManually() {
         try {
-            // 创建新的敌人实体
             Entity enemy = world.createEntity();
 
-            // 随机选择敌人类型
             Enemy.Type[] types = Enemy.Type.values();
             Enemy.Type type = types[random.nextInt(types.length)];
 
-            // 随机选择路径
             Path.PathTag[] pathTags = Path.PathTag.values();
             Path.PathTag pathTag = pathTags[random.nextInt(pathTags.length)];
 
-            // 根据敌人类型设置属性
             int health = 0;
             float speed = 0;
             int reward = 0;
 
             switch (type) {
                 case GOBLIN:
-                    // 哥布林：低血量、高速度、低奖励 - 快速但脆弱
                     health = 30;
                     speed = 50;
                     reward = 5;
                     break;
                 case ORC:
-                    // 兽人：中等血量、中等速度、中等奖励 - 均衡型
                     health = 60;
                     speed = 30;
                     reward = 10;
                     break;
                 case TROLL:
-                    // 巨魔：高血量、低速度、高奖励 - 缓慢但强大
                     health = 100;
                     speed = 20;
                     reward = 20;
                     break;
             }
 
-            // 为敌人实体添加必要的组件
-            // Transform组件：定义敌人在游戏世界中的位置
-            // 注意：这里应该使用路径起点的实际坐标，但暂时使用固定位置
             enemy.addComponent(new Transform(100, 100));
-            // Health组件：定义敌人的生命值
             enemy.addComponent(new Health(health));
-            // Enemy组件：定义敌人的类型、移动速度和击败奖励，包含路径标签
             enemy.addComponent(new Enemy(type, speed, reward));
 
-            // 通知UI层游戏状态已更新，需要重绘
             if (updateListener != null) {
                 updateListener.onGameStateUpdated(world);
             }
         } catch (Exception e) {
-            // 打印异常信息，便于调试
             e.printStackTrace();
         }
     }
 
     /**
-     * 创建初始防御塔 - 在游戏开始时放置几个默认的塔
+     * 放置防御塔
      */
-    private void createInitialTowers() {
-        // 在指定位置创建不同类型的防御塔
-        createTower(200, 200, Tower.Type.ARCHER);  // 弓箭手塔
-        createTower(400, 300, Tower.Type.CANNON);  // 加农炮塔
-        createTower(600, 200, Tower.Type.MAGE);    // 法师塔
+    public void placeTower(float x, float y, Tower.Type type) {
+        createTower(x, y, type);
+
+        if (updateListener != null) {
+            updateListener.onGameStateUpdated(world);
+        }
     }
 
     /**
-     * 创建防御塔实体
-     * @param x 塔的X坐标
-     * @param y 塔的Y坐标
-     * @param type 塔的类型
+     * 创建防御塔实体（现在作为内部方法，不暴露给外部）
      */
     private void createTower(float x, float y, Tower.Type type) {
-        // 创建新的塔实体
         Entity tower = world.createEntity();
-        // 添加位置组件
         tower.addComponent(new Transform(x, y));
 
-        // 根据塔类型设置属性
         int damage = 0;
         float range = 0;
         float attackSpeed = 0;
 
         switch (type) {
             case ARCHER:
-                // 弓箭手：均衡的伤害、射程和攻速
                 damage = 10;
                 range = 150;
                 attackSpeed = 1.0f;
                 break;
             case CANNON:
-                // 加农炮：高伤害但射程较短、攻速较慢
                 damage = 25;
                 range = 120;
                 attackSpeed = 0.5f;
                 break;
             case MAGE:
-                // 法师：中等伤害、长射程、较快攻速
                 damage = 15;
                 range = 180;
                 attackSpeed = 0.8f;
                 break;
         }
 
-        // 添加塔组件，包含塔的所有战斗属性
         tower.addComponent(new Tower(type, damage, range, attackSpeed));
     }
 
-    /**
-     * 开始游戏 - 启动游戏循环
-     * 如果游戏已经在运行，则不做任何操作
-     */
+    // 以下方法保持不变...
     public void startGame() {
         if (isRunning) return;
 
-        // 设置运行状态标志
         isRunning = true;
-        // 创建游戏循环任务
         gameLoop = new Runnable() {
             @Override
             public void run() {
                 if (isRunning) {
-                    // 更新游戏状态
                     updateGame();
-                    // 16ms后再次执行，实现约60FPS的游戏循环
                     gameHandler.postDelayed(this, 16);
                 }
             }
         };
-        // 启动游戏循环
         gameHandler.post(gameLoop);
-
-        // 强制进行第一次更新，确保游戏立即开始
         updateGame();
     }
 
-    /**
-     * 更新游戏状态 - 游戏循环的核心方法
-     * 每帧调用一次，更新所有游戏系统
-     */
     private void updateGame() {
         try {
-            // 更新所有ECS系统，传入时间增量(16ms = 0.016秒)
             world.update(0.016f);
 
-            // 通知UI层游戏状态已更新，需要重绘
             if (updateListener != null) {
                 updateListener.onGameStateUpdated(world);
             }
         } catch (Exception e) {
-            // 打印异常信息，便于调试
             e.printStackTrace();
         }
     }
 
-    /**
-     * 停止游戏 - 完全停止游戏循环
-     * 清除所有回调，游戏状态重置
-     */
     public void stopGame() {
         isRunning = false;
         if (gameLoop != null) {
@@ -310,10 +200,6 @@ public class GameEngine {
         }
     }
 
-    /**
-     * 暂停游戏 - 暂停游戏循环但保持游戏状态
-     * 可以后续通过resumeGame恢复
-     */
     public void pauseGame() {
         isRunning = false;
         if (gameLoop != null) {
@@ -321,65 +207,50 @@ public class GameEngine {
         }
     }
 
-    /**
-     * 恢复游戏 - 从暂停状态恢复游戏
-     * 如果游戏没有运行，则重新启动游戏循环
-     */
     public void resumeGame() {
         if (!isRunning) {
             startGame();
         }
     }
 
-    /**
-     * 放置防御塔 - 公开方法，用于在指定位置放置指定类型的塔
-     * 通常由GameView中的触摸事件调用
-     * @param x 放置位置的X坐标
-     * @param y 放置位置的Y坐标
-     * @param type 塔的类型
-     */
-    public void placeTower(float x, float y, Tower.Type type) {
-        // 创建新的防御塔
-        createTower(x, y, type);
-
-        // 通知UI层游戏状态已更新，需要重绘
-        if (updateListener != null) {
-            updateListener.onGameStateUpdated(world);
-        }
-    }
-
-    /**
-     * 获取ECS世界实例
-     * @return 当前游戏的世界对象
-     */
     public World getWorld() {
         return world;
     }
 
-    /**
-     * 设置游戏状态更新监听器
-     * @param listener 实现GameUpdateListener接口的监听器
-     */
     public void setUpdateListener(GameUpdateListener listener) {
         this.updateListener = listener;
     }
 
-    /**
-     * 检查游戏是否正在运行
-     * @return true如果游戏正在运行，false否则
-     */
     public boolean isRunning() {
         return isRunning;
     }
 
-    /**
-     * 获取路径实体（可选）- 用于其他系统访问路径数据
-     * @param pathTag 路径标签
-     * @return 对应的路径实体，如果不存在返回null
-     */
     public Entity getPathEntity(Path.PathTag pathTag) {
-        // 这里需要实现从世界中查找对应路径标签的实体
-        // 由于我们目前没有路径管理系统，这个方法需要后续实现
         return null;
+    }
+
+    /**
+     * 新增：获取关卡系统
+     */
+    public LevelSystem getLevelSystem() {
+        return levelSystem;
+    }
+
+    /**
+     * 新增：切换关卡
+     */
+    public void switchLevel(int newLevelId) {
+        // 暂停游戏
+        pauseGame();
+
+        // 清理当前世界（可选，根据需求）
+        // world.clear();
+
+        // 切换关卡
+        levelSystem.switchLevel(newLevelId);
+        levelSystem.initializeLevel(world);
+
+        // 重新开始游戏
+        startGame();
     }
 }
