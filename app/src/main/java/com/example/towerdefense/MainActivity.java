@@ -39,7 +39,7 @@ public class MainActivity extends AppCompatActivity {
             // 创建意图(Intent)用于启动游戏活动(GameActivity)
             // MainActivity.this 表示当前Activity的上下文
             // com.example.towerdefense.view.GameActivity.class 表示要启动的目标Activity
-            Intent intent = new Intent(MainActivity.this, com.example.towerdefense.view.GameActivity.class);
+            Intent intent = new Intent(MainActivity.this, com.example.towerdefense.SelectActivity.class);
 
             // 启动目标Activity，开始游戏
             startActivity(intent);
