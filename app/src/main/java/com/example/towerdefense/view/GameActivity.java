@@ -171,7 +171,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         tvHealth.setText(getString(R.string.health_text, 100));// 使用带参数的资源
         tvWave.setText(getString(R.string.wave_text, 1));      // 使用带参数的资源
 
-        Toast.makeText(this, R.string.game_started, Toast.LENGTH_SHORT).show();
+    //    Toast.makeText(this, R.string.level_selection, Toast.LENGTH_SHORT).show();
     }
 
     /**

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <TextView
+        android:id="@+id/str_selection"
+        android:text="@string/level_list"
+        android:layout_width="250dp"
+        android:layout_height="100dp"
+        android:textSize="50sp"
+        android:textColor="@color/black"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="3dp"
+        android:layout_marginStart="6dp"
+    />
+
+
+    <Button
+        android:id="@+id/btn_train"
+        android:layout_width="200dp"
+        android:layout_height="50dp"
+        android:text="@string/level_train"
+        android:textSize="20sp"
+        app:layout_constraintTop_toBottomOf="@id/str_selection"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/btn_level01"
+        android:layout_marginTop="60dp"
+        android:layout_marginStart="60dp"
+       />
+
+    <Button
+        android:id="@+id/btn_level01"
+        android:layout_width="200dp"
+        android:layout_height="50dp"
+        android:text="@string/level_01"
+        android:textSize="20sp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btn_train"
+        android:layout_marginTop="160dp"
+        android:layout_marginStart="20dp"
+        />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

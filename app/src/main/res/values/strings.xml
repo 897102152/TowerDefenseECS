@@ -7,7 +7,10 @@
     <string name="pause_button">暂停</string>
     <string name="resume_button">继续</string>
     <string name="spawn_enemy">出怪</string>
-    <string name="game_started">游戏开始</string>
+    <string name="level_selection">选择关卡</string>
     <string name="game_name">Tower Defense</string>
     <string name="start_button">开始游戏</string>
+    <string name="level_train">教学关\n</string>
+    <string name="level_01">第一关\n</string>
+    <string name="level_list">关卡列表\n</string>
 </resources>
