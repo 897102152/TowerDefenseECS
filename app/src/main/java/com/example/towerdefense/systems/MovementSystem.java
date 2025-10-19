@@ -2,28 +2,42 @@ package com.example.towerdefense.systems;
 
 import com.example.towerdefense.ecs.ECSSystem;
 import com.example.towerdefense.ecs.Entity;
+import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
 import com.example.towerdefense.components.Health;
-
+import com.example.towerdefense.components.Path;
 import java.util.List;
+
+
+
 
 /**
  * 移动系统 - 处理游戏中所有实体的移动逻辑
  * 包括敌人沿着路径移动和弹道向目标移动
  * 继承自ECSSystem，处理所有具有Transform组件的实体
  */
+
 public class MovementSystem extends ECSSystem {
+
+
+    private float screenWidth;
+    private float screenHeight;
+
+    /**
+     * 设置世界引用
+     */
 
     /**
      * 预设路径点 - 定义敌人从起点到终点的移动路径
      * 每个点包含[x, y]坐标，敌人按顺序经过这些点
+     * 设置屏幕尺寸
      */
-    private final float[][] path = {
-            {100, 100}, {300, 100}, {300, 300}, {100, 300}, {100, 500}
-    };
-
+    public void setScreenSize(float width, float height) {
+        this.screenWidth = width;
+        this.screenHeight = height;
+    }
     /**
      * 构造函数 - 指定该系统处理的组件类型
      * 处理所有具有Transform组件的实体
@@ -63,14 +77,30 @@ public class MovementSystem extends ECSSystem {
      * @param transform 敌人的位置组件
      * @param deltaTime 时间增量
      */
+    /**
+     * 移动敌人 - 处理敌人沿着路径的移动
+     */
     private void moveEnemy(Entity enemy, Transform transform, float deltaTime) {
         Enemy enemyComp = enemy.getComponent(Enemy.class);
 
+        // 获取敌人对应的路径
+        Path enemyPath = getEnemyPath(enemyComp);
+        if (enemyPath == null) {
+            // 如果没有找到路径，移除敌人
+            if (world != null) {
+                world.removeEntity(enemy);
+            }
+            return;
+        }
+
+        // 将百分比路径点转换为屏幕坐标
+        float[][] pathPoints = enemyPath.convertToScreenCoordinates(screenWidth, screenHeight);
+
         // 检查敌人是否还有路径点需要移动
-        if (enemyComp.pathIndex < path.length) {
+        if (enemyComp.pathIndex < pathPoints.length) {
             // 获取当前目标路径点的坐标
-            float targetX = path[enemyComp.pathIndex][0];
-            float targetY = path[enemyComp.pathIndex][1];
+            float targetX = pathPoints[enemyComp.pathIndex][0];
+            float targetY = pathPoints[enemyComp.pathIndex][1];
 
             // 计算到目标点的方向向量和距离
             float dx = targetX - transform.x;
@@ -82,14 +112,36 @@ public class MovementSystem extends ECSSystem {
                 enemyComp.pathIndex++;
             } else {
                 // 沿着方向向量移动敌人
-                // 标准化方向向量并乘以速度和时间的乘积
                 transform.x += (dx / distance) * enemyComp.speed * deltaTime;
                 transform.y += (dy / distance) * enemyComp.speed * deltaTime;
             }
         } else {
             // 敌人已经到达路径终点，从世界中移除
-            world.removeEntity(enemy);
+            if (world != null) {
+                world.removeEntity(enemy);
+            }
         }
+    }
+
+    /**
+     * 获取敌人对应的路径 - 直接从World中查找
+     */
+    private Path getEnemyPath(Enemy enemy) {
+        if (world == null) return null;
+
+        // 获取所有路径实体
+        List<Entity> pathEntities = world.getEntitiesWithComponent(Path.class);
+
+        for (Entity pathEntity : pathEntities) {
+            Path path = pathEntity.getComponent(Path.class);
+
+            // 根据敌人的路径标签找到对应的路径
+            if (path.getTag() == enemy.pathTag) {
+                return path;
+            }
+        }
+
+        return null; // 没有找到对应的路径
     }
 
     /**

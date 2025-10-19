@@ -61,21 +61,22 @@ public class GameView extends View {
         canvas.drawColor(Color.DKGRAY);
 
         if (gameEngine == null) {
-            paint.setColor(Color.RED);
-            paint.setTextSize(40);
-            canvas.drawText("GameEngine is null", 50, 100, paint);
+            // 错误处理...
             return;
+        }
+
+        // 在第一次绘制时确保屏幕尺寸已设置
+        if (getWidth() > 0 && getHeight() > 0) {
+            gameEngine.setScreenSize(getWidth(), getHeight());
         }
 
         World world = gameEngine.getWorld();
         if (world == null) {
-            paint.setColor(Color.RED);
-            paint.setTextSize(40);
-            canvas.drawText("World is null", 50, 100, paint);
+            // 错误处理...
             return;
         }
 
-        // 修复方法调用
+        // 原有的绘制代码...
         drawMap(canvas, world);
         drawAllEntities(canvas, world);
         drawUI(canvas);
@@ -85,7 +86,12 @@ public class GameView extends View {
         paint.setTextSize(20);
         int entityCount = world.getAllEntities().size();
         canvas.drawText("实体数量: " + entityCount, 10, getHeight() - 20, paint);
+        // 添加屏幕尺寸显示
+        canvas.drawText("屏幕: " + getWidth() + "x" + getHeight(), 10, getHeight() - 50, paint);
     }
+
+    // 其他方法保持不变...
+
 
     /**
      * 绘制游戏地图和路径
@@ -258,5 +264,16 @@ public class GameView extends View {
             return true;
         }
         return super.onTouchEvent(event);
+    }
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+
+        // 当视图尺寸变化时，传递屏幕尺寸给 GameEngine
+        if (gameEngine != null) {
+            gameEngine.setScreenSize(w, h);
+        }
+
+        System.out.println("GameView: 屏幕尺寸变化 " + w + "x" + h);
     }
 }

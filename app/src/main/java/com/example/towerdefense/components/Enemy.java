@@ -23,19 +23,28 @@ public class Enemy implements Component {
     public int reward;     // 击败后奖励的金币数
     public int pathIndex;  // 当前路径点索引，用于路径跟踪
 
+    public Path.PathTag pathTag;
     /**
      * 构造函数 - 初始化敌人属性
      * @param type 敌人类型，决定基础属性
      * @param speed 移动速度，影响敌人在路径上的移动快慢
      * @param reward 击败奖励，玩家消灭敌人后获得的金币数
      */
+    /**
     public Enemy(Type type, float speed, int reward) {
         this.type = type;
         this.speed = speed;
         this.reward = reward;
         this.pathIndex = 0; // 从第一个路径点开始移动
     }
-
+     */
+    public Enemy(Type type, float speed, int reward, Path.PathTag pathTag) {
+        this.type = type;
+        this.speed = speed;
+        this.reward = reward;
+        this.pathIndex = 0; // 从第一个路径点开始移动
+        this.pathTag = pathTag;
+    }
     // ========== Getter 方法 ==========
     // 提供封装访问，虽然字段是public，但getter提供了更好的API设计
 

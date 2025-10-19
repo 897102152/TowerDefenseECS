@@ -6,7 +6,7 @@ import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Tower;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
-
+import com.example.towerdefense.ecs.World;
 import java.util.List;
 
 /**
@@ -15,6 +15,11 @@ import java.util.List;
  * 继承自ECSSystem，专门处理具有Transform和Tower组件的实体
  */
 public class AttackSystem extends ECSSystem {
+
+
+
+
+    // 修改构造函数，确保能访问到世界
 
     /**
      * 构造函数 - 指定该系统处理的组件类型
@@ -70,20 +75,18 @@ public class AttackSystem extends ECSSystem {
      * @return 攻击范围内的第一个敌人，如果没有则返回null
      */
     private Entity findTargetInRange(Transform towerTransform, Tower tower, List<Entity> enemies) {
-        // 遍历所有敌人，检查是否在攻击范围内
         for (Entity enemy : enemies) {
-            // 获取敌人的位置信息
             Transform enemyTransform = enemy.getComponent(Transform.class);
 
-            // 计算防御塔与敌人之间的距离
-            float distance = towerTransform.distanceTo(enemyTransform);
+            // 手动计算距离（替换原来的 distanceTo 方法调用）
+            float dx = towerTransform.x - enemyTransform.x;
+            float dy = towerTransform.y - enemyTransform.y;
+            float distance = (float) Math.sqrt(dx * dx + dy * dy);
 
-            // 如果敌人在攻击范围内，返回该敌人
             if (distance <= tower.range) {
                 return enemy;
             }
         }
-        // 没有找到在攻击范围内的敌人
         return null;
     }
 

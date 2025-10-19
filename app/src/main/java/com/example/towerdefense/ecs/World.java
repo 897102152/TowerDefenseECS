@@ -85,10 +85,12 @@ public class World {
      * 3. 系统将在每帧更新时被调用
      */
     public void addSystem(ECSSystem system) {
+        // 设置系统的世界引用
         system.setWorld(this);
         systems.add(system);
+        System.out.println("World: 添加系统 " + system.getClass().getSimpleName() +
+                " (world=" + (system.world != null) + ")");
     }
-
     /**
      * 更新世界 - 执行一帧的游戏逻辑
      * @param deltaTime 距离上一帧的时间间隔（秒）
@@ -98,9 +100,20 @@ public class World {
      * 系统更新顺序可能影响游戏逻辑，需要谨慎设计
      */
     public void update(float deltaTime) {
+        System.out.println("World: 更新开始，系统数量=" + systems.size() + ", 实体数量=" + entities.size());
+
         for (ECSSystem system : systems) {
+            // 使用公共方法检查
+            if (!system.isWorldSet()) {
+                System.err.println("World: 严重错误！系统 " + system.getClass().getSimpleName() + " 的 world 为 null");
+                system.setWorld(this); // 立即修复
+            }
+
+            System.out.println("World: 更新系统 " + system.getClass().getSimpleName() + " (world=" + system.isWorldSet() + ")");
             system.update(deltaTime);
         }
+
+        System.out.println("World: 更新结束");
     }
 
     /**

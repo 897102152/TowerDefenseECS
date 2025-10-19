@@ -17,21 +17,27 @@ import com.example.towerdefense.systems.SpawnSystem;
 import com.example.towerdefense.systems.LevelSystem;
 
 import java.util.Random;
-
+import java.util.List; // 确保有这行导入
 /**
  * 游戏引擎主类 - 采用ECS(Entity-Component-System)架构
  * 负责管理游戏循环、实体创建、系统更新和游戏状态
  */
 public class GameEngine {
-    private final World world;
+    private World world;
     private final Handler gameHandler;
     private Runnable gameLoop;
     private boolean isRunning = false;
     private GameUpdateListener updateListener;
     private final Random random = new Random();
 
-    // 新增：关卡系统
+    // 系统引用
+    private SpawnSystem spawnSystem;
+    private MovementSystem movementSystem;
     private LevelSystem levelSystem;
+
+    // 屏幕尺寸字段
+    private int screenWidth;
+    private int screenHeight;
 
     public interface GameUpdateListener {
         void onGameStateUpdated(World world);
@@ -46,10 +52,39 @@ public class GameEngine {
         world = new World();
         gameHandler = new Handler(Looper.getMainLooper());
 
+        // 初始化系统
+        setupSystems();
         // 初始化关卡系统
         setupLevelSystem(levelId);
-        // 初始化游戏系统
-        setupSystems();
+    }
+
+    /**
+     * 设置游戏系统
+     */
+    private void setupSystems() {
+        System.out.println("GameEngine: 开始设置系统...");
+
+        // 创建系统实例
+        spawnSystem = new SpawnSystem();
+        movementSystem = new MovementSystem();
+        AttackSystem attackSystem = new AttackSystem();
+
+        System.out.println("GameEngine: 系统创建完成");
+
+        // 添加到世界（这会自动调用基类的 setWorld 方法）
+        world.addSystem(spawnSystem);
+        world.addSystem(movementSystem);
+        world.addSystem(attackSystem);
+
+        System.out.println("GameEngine: 系统已添加到世界");
+
+        // 使用公共方法验证世界引用
+        System.out.println("=== 系统世界引用验证 ===");
+        System.out.println("GameEngine: SpawnSystem.world = " + spawnSystem.isWorldSet());
+        System.out.println("GameEngine: MovementSystem.world = " + movementSystem.isWorldSet());
+        System.out.println("GameEngine: AttackSystem.world = " + attackSystem.isWorldSet());
+
+        System.out.println("GameEngine: 系统设置完成");
     }
 
     /**
@@ -60,17 +95,46 @@ public class GameEngine {
         levelSystem = new LevelSystem(levelId);
         // 初始化关卡（创建路径、初始塔等）
         levelSystem.initializeLevel(world);
+
+        // 确保路径实体已经创建
+        System.out.println("GameEngine: 路径初始化完成，路径数量: " +
+                world.getEntitiesWithComponent(Path.class).size());
     }
 
     /**
-     * 设置游戏系统
+     * 设置屏幕尺寸 - 传递给所有需要的系统
      */
-    private void setupSystems() {
-        world.addSystem(new SpawnSystem());
-        world.addSystem(new MovementSystem());
-        world.addSystem(new AttackSystem());
-        // 可以添加关卡系统到世界系统中，如果它需要每帧更新的话
-        // world.addSystem(levelSystem);
+    public void setScreenSize(int width, int height) {
+        this.screenWidth = width;
+        this.screenHeight = height;
+
+        System.out.println("GameEngine: 屏幕尺寸设置为 " + width + "x" + height);
+
+        // 验证路径转换
+        validatePathCoordinates();
+
+        // 传递屏幕尺寸给各个系统
+        if (spawnSystem != null) {
+            spawnSystem.setScreenSize(width, height);
+        }
+        if (movementSystem != null) {
+            movementSystem.setScreenSize(width, height);
+        }
+    }
+
+    /**
+     * 验证路径坐标转换
+     */
+    private void validatePathCoordinates() {
+        List<Entity> paths = world.getEntitiesWithComponent(Path.class);
+        System.out.println("GameEngine: 验证 " + paths.size() + " 条路径");
+
+        for (Entity pathEntity : paths) {
+            Path path = pathEntity.getComponent(Path.class);
+            float[][] screenPoints = path.convertToScreenCoordinates(screenWidth, screenHeight);
+            System.out.println("GameEngine: 路径 " + path.getTag() + " 起点: (" +
+                    screenPoints[0][0] + ", " + screenPoints[0][1] + ")");
+        }
     }
 
     /**
@@ -83,34 +147,43 @@ public class GameEngine {
             Enemy.Type[] types = Enemy.Type.values();
             Enemy.Type type = types[random.nextInt(types.length)];
 
-            Path.PathTag[] pathTags = Path.PathTag.values();
-            Path.PathTag pathTag = pathTags[random.nextInt(pathTags.length)];
+            // 删除随机选择 pathTag 的代码，因为后面会根据敌人类型设置
+            // Path.PathTag[] pathTags = Path.PathTag.values();
+            // Path.PathTag pathTag = pathTags[random.nextInt(pathTags.length)];
 
             int health = 0;
             float speed = 0;
             int reward = 0;
+            Path.PathTag pathTag = Path.PathTag.PATH_A; // 默认值
 
             switch (type) {
                 case GOBLIN:
                     health = 30;
                     speed = 50;
                     reward = 5;
+                    pathTag = Path.PathTag.PATH_A;
                     break;
                 case ORC:
                     health = 60;
                     speed = 30;
                     reward = 10;
+                    pathTag = Path.PathTag.PATH_B;
                     break;
                 case TROLL:
                     health = 100;
                     speed = 20;
                     reward = 20;
+                    pathTag = Path.PathTag.PATH_A;
                     break;
             }
 
-            enemy.addComponent(new Transform(100, 100));
+            // 获取路径起点作为敌人的初始位置
+            float[] startPosition = getPathStartPosition(pathTag);
+
+            // 使用路径起点而不是固定坐标
+            enemy.addComponent(new Transform(startPosition[0], startPosition[1]));
             enemy.addComponent(new Health(health));
-            enemy.addComponent(new Enemy(type, speed, reward));
+            enemy.addComponent(new Enemy(type, speed, reward, pathTag));
 
             if (updateListener != null) {
                 updateListener.onGameStateUpdated(world);
@@ -118,6 +191,32 @@ public class GameEngine {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 根据路径标签获取路径的起点位置
+     */
+    /**
+     * 根据路径标签获取路径的起点位置
+     */
+    private float[] getPathStartPosition(Path.PathTag pathTag) {
+        // 从世界中找到对应的路径
+        for (Entity entity : world.getEntitiesWithComponent(Path.class)) {
+            Path path = entity.getComponent(Path.class);
+            if (path.getTag() == pathTag) {
+                // 使用路径组件的转换方法
+                float[][] screenPoints = path.convertToScreenCoordinates(screenWidth, screenHeight);
+                if (screenPoints.length > 0) {
+                    float startX = screenPoints[0][0];
+                    float startY = screenPoints[0][1];
+                    System.out.println("GameEngine: 路径 " + pathTag + " 起点: (" + startX + ", " + startY + ")");
+                    return new float[]{startX, startY};
+                }
+            }
+        }
+
+        System.err.println("GameEngine: 警告！找不到路径 " + pathTag + "，使用默认起点");
+        return new float[]{100, 100};
     }
 
     /**
@@ -163,7 +262,6 @@ public class GameEngine {
         tower.addComponent(new Tower(type, damage, range, attackSpeed));
     }
 
-    // 以下方法保持不变...
     public void startGame() {
         if (isRunning) return;
 
@@ -242,9 +340,6 @@ public class GameEngine {
     public void switchLevel(int newLevelId) {
         // 暂停游戏
         pauseGame();
-
-        // 清理当前世界（可选，根据需求）
-        // world.clear();
 
         // 切换关卡
         levelSystem.switchLevel(newLevelId);

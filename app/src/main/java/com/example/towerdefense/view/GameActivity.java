@@ -28,8 +28,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private TextView tvGold, tvHealth, tvWave;
     private int currentLevelId;
     private String currentLevelName;
-    // 获取从SelectActivity传递过来的关卡信息
-
 
     /**
      * Activity创建时的回调方法
@@ -162,16 +160,30 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     private void setupGameEngine() {
         // 创建游戏引擎实例
-        gameEngine = new GameEngine(this,currentLevelId);
+        gameEngine = new GameEngine(this, currentLevelId);
         // 设置游戏状态更新监听器（当前Activity）
         gameEngine.setUpdateListener(this);
         // 将游戏引擎设置到游戏视图中
         gameView.setGameEngine(gameEngine);
 
-        // 创建游戏引擎时传入关卡ID
-        gameEngine = new GameEngine(this, currentLevelId);
-        gameEngine.setUpdateListener(this);
-        gameView.setGameEngine(gameEngine);
+        // 确保在布局完成后设置屏幕尺寸
+        gameView.post(new Runnable() {
+            @Override
+            public void run() {
+                // 获取 GameView 的实际尺寸并设置给 GameEngine
+                int screenWidth = gameView.getWidth();
+                int screenHeight = gameView.getHeight();
+
+                if (screenWidth > 0 && screenHeight > 0) {
+                    gameEngine.setScreenSize(screenWidth, screenHeight);
+                    System.out.println("GameActivity: 屏幕尺寸设置为 " + screenWidth + "x" + screenHeight);
+                } else {
+                    // 如果获取失败，使用默认尺寸
+                    System.out.println("GameActivity: 无法获取屏幕尺寸，使用默认值");
+                    gameEngine.setScreenSize(1080, 1920); // 默认尺寸
+                }
+            }
+        });
 
         // 可以在UI上显示当前关卡名称
         Toast.makeText(this, "当前关卡: " + currentLevelName, Toast.LENGTH_SHORT).show();
@@ -192,8 +204,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         tvGold.setText(getString(R.string.gold_text, 100));    // 使用带参数的资源
         tvHealth.setText(getString(R.string.health_text, 100));// 使用带参数的资源
         tvWave.setText(getString(R.string.wave_text, 1));      // 使用带参数的资源
-
-    //    Toast.makeText(this, R.string.level_selection, Toast.LENGTH_SHORT).show();
     }
 
     /**
