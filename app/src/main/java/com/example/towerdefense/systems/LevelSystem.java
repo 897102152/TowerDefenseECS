@@ -50,8 +50,7 @@ public  class LevelSystem extends ECSSystem {
      */
     private void initializeTrainingLevel() {
         createPaths_training();
-        createInitialTowers();
-        // 训练关特有配置：更多金币、无限生命等
+         // 训练关特有配置：更多金币、无限生命等
     }
 
     /**
@@ -121,12 +120,7 @@ public  class LevelSystem extends ECSSystem {
     /**
      * 创建初始防御塔 - 在游戏开始时放置几个默认的塔
      */
-    private void createInitialTowers() {
-        // 在指定位置创建不同类型的防御塔
-        createTower(200, 200, Tower.Type.ARCHER);
-        createTower(400, 300, Tower.Type.CANNON);
-        createTower(600, 200, Tower.Type.MAGE);
-    }
+
 
     /**
      * 创建森林关卡的初始防御塔

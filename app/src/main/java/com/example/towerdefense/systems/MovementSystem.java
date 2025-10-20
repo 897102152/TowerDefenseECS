@@ -45,6 +45,11 @@ public class MovementSystem extends ECSSystem {
     public MovementSystem() {
         super(Transform.class);
     }
+    @Override
+    public void setWorld(World world) {
+        super.setWorld(world);
+        System.out.println("MovementSystem: 世界引用已设置，world=" + (world != null ? "有效" : "null"));
+    }
 
     /**
      * 更新方法 - 每帧调用，处理所有实体的移动逻辑
@@ -95,7 +100,8 @@ public class MovementSystem extends ECSSystem {
 
         // 将百分比路径点转换为屏幕坐标
         float[][] pathPoints = enemyPath.convertToScreenCoordinates(screenWidth, screenHeight);
-
+        System.out.println("MovementSystem: 敌人 " + enemyComp.type + " 路径 " + enemyComp.pathTag +
+                " 有 " + pathPoints.length + " 个点，当前位置: (" + transform.x + ", " + transform.y + ")");
         // 检查敌人是否还有路径点需要移动
         if (enemyComp.pathIndex < pathPoints.length) {
             // 获取当前目标路径点的坐标
@@ -110,6 +116,7 @@ public class MovementSystem extends ECSSystem {
             // 如果距离目标点很近（小于5像素），则移动到下一个路径点
             if (distance < 5) {
                 enemyComp.pathIndex++;
+                System.out.println("MovementSystem: 敌人 " + enemyComp.type + " 到达路径点 " + enemyComp.pathIndex);
             } else {
                 // 沿着方向向量移动敌人
                 transform.x += (dx / distance) * enemyComp.speed * deltaTime;
@@ -127,20 +134,24 @@ public class MovementSystem extends ECSSystem {
      * 获取敌人对应的路径 - 直接从World中查找
      */
     private Path getEnemyPath(Enemy enemy) {
-        if (world == null) return null;
+        if (world == null) {
+            System.err.println("MovementSystem: world为null");
+            return null;
+        }
 
         // 获取所有路径实体
         List<Entity> pathEntities = world.getEntitiesWithComponent(Path.class);
-
+        System.out.println("MovementSystem: 查找路径 " + enemy.pathTag + "，当前世界中有 " + pathEntities.size() + " 条路径");
         for (Entity pathEntity : pathEntities) {
             Path path = pathEntity.getComponent(Path.class);
-
+            System.out.println("MovementSystem: 检查路径 " + path.getTag());
             // 根据敌人的路径标签找到对应的路径
             if (path.getTag() == enemy.pathTag) {
+                System.out.println("MovementSystem: 找到匹配的路径 " + path.getTag());
                 return path;
             }
         }
-
+        System.err.println("MovementSystem: 错误！没有找到路径 " + enemy.pathTag);
         return null; // 没有找到对应的路径
     }
 

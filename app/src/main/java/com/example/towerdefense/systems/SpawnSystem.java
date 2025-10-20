@@ -6,7 +6,7 @@ import com.example.towerdefense.ecs.Entity;
 import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Enemy;
-
+import com.example.towerdefense.ecs.World;
 
 import java.util.Random;
 
@@ -34,11 +34,13 @@ public class SpawnSystem extends ECSSystem {
     private int screenHeight = 1920; // 默认值
 
     private boolean isReady = false;
+
     /**
      * 构造函数 - 这是一个全局管理系统，不需要特定组件
      * 负责整个游戏的敌人生成逻辑，不依赖于特定实体类型
      */
     public SpawnSystem() {
+
         super(); // 无必需组件，处理全局生成逻辑
     }
     /**
@@ -50,11 +52,16 @@ public class SpawnSystem extends ECSSystem {
         this.isReady = true; // 屏幕尺寸设置后即可开始生成
         System.out.println("SpawnSystem: 屏幕尺寸设置为 " + width + "x" + height + "，准备生成敌人");
     }
-
+    @Override
+    public void setWorld(World world) {
+        super.setWorld(world);
+        System.out.println("SpawnSystem: 世界引用已设置，world=" + (world != null ? "有效" : "null"));
+    }
     @Override
     public void update(float deltaTime) {
         // 如果系统未就绪，直接返回
         if (!isReady) {
+            System.out.println("SpawnSystem: 系统未就绪，等待屏幕尺寸设置");
             return;
         }
 
@@ -136,6 +143,9 @@ public class SpawnSystem extends ECSSystem {
         enemy.addComponent(new Transform(startPosition[0], startPosition[1])); // 使用路径起点
         enemy.addComponent(new Health(health));       // 设置生命值
         enemy.addComponent(new Enemy(type, speed, reward, pathTag)); // 设置敌人属性
+        System.out.println("SpawnSystem: 生成 " + type + " 敌人，路径=" + pathTag +
+                "，位置=(" + startPosition[0] + ", " + startPosition[1] + ")" +
+                "，速度=" + speed);
     }
     /**
      * 根据路径标签获取路径的起点位置

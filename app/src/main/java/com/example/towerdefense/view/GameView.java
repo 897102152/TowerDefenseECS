@@ -62,7 +62,13 @@ public class GameView extends View {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-
+        System.out.println("GameView: onSizeChanged - " + w + "x" + h);
+        if (gameEngine != null) {
+            gameEngine.setScreenSize(w, h);
+            System.out.println("GameView: 屏幕尺寸已传递给GameEngine");
+        } else {
+            System.err.println("GameView: 错误！gameEngine为null，无法设置屏幕尺寸");
+        }
         // 当视图尺寸变化时，重新计算网格大小
         calculateGridSize();
 
@@ -183,6 +189,15 @@ public class GameView extends View {
             float x = event.getX();
             float y = event.getY();
 
+            // 添加建造模式检查
+            if (!isBuildMode) {
+                System.out.println("GameView: 建造模式未开启，无法放置防御塔");
+                // 可以在这里添加提示，比如显示Toast或者改变UI状态
+                showBuildModeRequiredMessage();
+                performClick();
+                return true;
+            }
+
             if (isBuildMode) {
                 // 建造模式：将点击位置吸附到网格
                 GridPosition gridPos = convertToGridPosition(x, y);
@@ -201,6 +216,23 @@ public class GameView extends View {
         }
         return super.onTouchEvent(event);
     }
+    /**
+     * 显示需要建造模式的提示信息
+     */
+    private void showBuildModeRequiredMessage() {
+        // 这里可以添加UI提示，比如：
+        // - 显示一个短暂的Toast消息
+        // - 在游戏界面上显示提示文本
+        // - 改变UI元素的颜色或状态
+
+        // 示例：如果要在GameView上绘制提示，可以设置一个标志并在onDraw中处理
+        // 这里我们先简单地在控制台输出
+        System.out.println("GameView: 请先开启建造模式来放置防御塔");
+
+        // 如果需要更明显的用户反馈，可以在这里添加：
+        // Toast.makeText(getContext(), "请先开启建造模式", Toast.LENGTH_SHORT).show();
+    }
+
     /**
      * 处理可访问性点击事件
      */
@@ -403,6 +435,19 @@ public class GameView extends View {
 
         String towerText = "选中: " + selectedTowerType.name();
         canvas.drawText(towerText, 10, textSize + 5, paint);
+
+
+        // 添加建造模式状态显示
+        String buildModeText = "建造模式: " + (isBuildMode ? "开启" : "关闭");
+        paint.setColor(isBuildMode ? Color.GREEN : Color.RED);
+        canvas.drawText(buildModeText, 10, textSize * 2 + 5, paint);
+
+        // 如果建造模式关闭，显示提示信息
+        if (!isBuildMode) {
+            paint.setColor(Color.YELLOW);
+            paint.setTextSize(textSize * 0.6f);
+            canvas.drawText("点击建造模式按钮来放置防御塔", 10, textSize * 3 + 5, paint);
+        }
 
         paint.setTextSize(textSize * 0.8f);
         canvas.drawText("点击放置塔", 10, textSize * 2 + 5, paint);

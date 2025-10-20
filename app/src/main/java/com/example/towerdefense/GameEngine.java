@@ -83,7 +83,6 @@ public class GameEngine {
         System.out.println("GameEngine: SpawnSystem.world = " + spawnSystem.isWorldSet());
         System.out.println("GameEngine: MovementSystem.world = " + movementSystem.isWorldSet());
         System.out.println("GameEngine: AttackSystem.world = " + attackSystem.isWorldSet());
-
         System.out.println("GameEngine: 系统设置完成");
     }
 
@@ -95,7 +94,6 @@ public class GameEngine {
         levelSystem = new LevelSystem(levelId);
         // 初始化关卡（创建路径、初始塔等）
         levelSystem.initializeLevel(world);
-
         // 确保路径实体已经创建
         System.out.println("GameEngine: 路径初始化完成，路径数量: " +
                 world.getEntitiesWithComponent(Path.class).size());
@@ -115,10 +113,16 @@ public class GameEngine {
 
         // 传递屏幕尺寸给各个系统
         if (spawnSystem != null) {
+            System.out.println("GameEngine: 设置SpawnSystem的屏幕尺寸");
             spawnSystem.setScreenSize(width, height);
+        }else {
+            System.out.println("GameEngine: spawnSystem为null！");
         }
         if (movementSystem != null) {
+            System.out.println("GameEngine: 设置MovementSystem的屏幕尺寸");
             movementSystem.setScreenSize(width, height);
+        }else {
+            System.out.println("GameEngine: MovementSystem为null！");
         }
     }
 
@@ -223,7 +227,15 @@ public class GameEngine {
      * 放置防御塔
      */
     public void placeTower(float x, float y, Tower.Type type) {
+
+        // 在实际游戏中，这里可以添加更多的验证逻辑，比如：
+        // - 检查金币是否足够
+        // - 检查位置是否合法（不在路径上等）
+        // - 检查是否超过塔的数量限制
+
         createTower(x, y, type);
+
+        System.out.println("GameEngine: 放置防御塔 " + type + " 在位置 (" + x + ", " + y + ")");
 
         if (updateListener != null) {
             updateListener.onGameStateUpdated(world);
@@ -347,5 +359,33 @@ public class GameEngine {
 
         // 重新开始游戏
         startGame();
+    }
+    /**
+     * 检查所有系统状态
+     */
+    public void checkSystemStatus() {
+        System.out.println("=== 系统状态检查 ===");
+        System.out.println("GameEngine: 屏幕尺寸=" + screenWidth + "x" + screenHeight);
+        System.out.println("GameEngine: 世界实体数=" + world.getAllEntities().size());
+
+        // 检查路径
+        List<Entity> paths = world.getEntitiesWithComponent(Path.class);
+        System.out.println("GameEngine: 路径数量=" + paths.size());
+        for (Entity path : paths) {
+            Path pathComp = path.getComponent(Path.class);
+            System.out.println("  - " + pathComp.getTag() + ": " + pathComp.getPercentagePoints().length + "个点");
+        }
+
+        // 检查敌人
+        List<Entity> enemies = world.getEntitiesWithComponent(Enemy.class);
+        System.out.println("GameEngine: 敌人数量=" + enemies.size());
+        for (Entity enemy : enemies) {
+            Enemy enemyComp = enemy.getComponent(Enemy.class);
+            Transform transform = enemy.getComponent(Transform.class);
+            System.out.println("  - " + enemyComp.type + " 位置=(" + transform.x + "," + transform.y +
+                    ") 路径=" + enemyComp.pathTag + " 索引=" + enemyComp.pathIndex);
+        }
+
+        System.out.println("=== 检查完成 ===");
     }
 }

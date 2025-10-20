@@ -44,11 +44,17 @@ public class Path implements Component {
      * @return 实际坐标点数组
      */
     public float[][] convertToScreenCoordinates(float screenWidth, float screenHeight) {
+        System.out.println("Path: 转换坐标，屏幕尺寸=" + screenWidth + "x" + screenHeight);
+
         float[][] screenPoints = new float[percentagePoints.length][2];
 
         for (int i = 0; i < percentagePoints.length; i++) {
             screenPoints[i][0] = percentagePoints[i][0] * screenWidth;
             screenPoints[i][1] = percentagePoints[i][1] * screenHeight;
+
+            System.out.println("Path: 点" + i + ": " + percentagePoints[i][0] + "," + percentagePoints[i][1] +
+                    " -> " + screenPoints[i][0] + "," + screenPoints[i][1]);
+
         }
 
         return screenPoints;

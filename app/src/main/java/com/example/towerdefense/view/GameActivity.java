@@ -1,5 +1,6 @@
 package com.example.towerdefense.view;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
@@ -11,7 +12,10 @@ import com.example.towerdefense.GameEngine;
 import com.example.towerdefense.R;
 import com.example.towerdefense.components.Tower;
 import com.example.towerdefense.ecs.World;
-
+import com.example.towerdefense.ecs.Entity;
+import com.example.towerdefense.components.Enemy;
+import com.example.towerdefense.components.Projectile;
+import android.os.Handler;
 /**
  * 游戏主活动 - 负责游戏界面的显示和用户交互
  * 实现GameUpdateListener接口，接收游戏状态更新回调
@@ -62,6 +66,13 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 自动开始游戏
         startGame();
+
+        // 延迟检查系统状态
+        new Handler().postDelayed(() -> {
+            if (gameEngine != null) {
+                gameEngine.checkSystemStatus();
+            }
+        }, 1000);
     }
 
     /**
@@ -125,16 +136,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         setBuildMode(false);
     }
 
-    /**
-     * 切换建造模式
-     */
-    private void toggleBuildMode() {
-        isBuildMode = !isBuildMode;
-        setBuildMode(isBuildMode);
 
-        String message = isBuildMode ? "建造模式开启" : "建造模式关闭";
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-    }
 
     /**
      * 设置建造模式状态
@@ -152,8 +154,38 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         if (buildMenuLayout != null) {
             buildMenuLayout.setVisibility(buildMode ? View.VISIBLE : View.GONE);
         }
+        // 更新建造模式按钮的文本或状态
+        updateBuildModeButton(buildMode);
     }
 
+    /**
+     * 更新建造模式按钮状态
+     */
+    private void updateBuildModeButton(boolean buildMode) {
+        View buildButton = findViewById(R.id.btnBuildMode);
+        if (buildButton instanceof android.widget.Button) {
+            android.widget.Button button = (android.widget.Button) buildButton;
+            if (buildMode) {
+                button.setText("退出建造模式");
+                button.setBackgroundColor(Color.RED);
+            } else {
+                button.setText("进入建造模式");
+                button.setBackgroundColor(Color.GREEN);
+            }
+        }
+    }
+
+
+    /**
+     * 切换建造模式
+     */
+    private void toggleBuildMode() {
+        isBuildMode = !isBuildMode;
+        setBuildMode(isBuildMode);
+
+        String message = isBuildMode ? "建造模式开启" : "建造模式关闭";
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
     /**
      * 设置游戏引擎并建立关联
      */
@@ -180,6 +212,20 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     public void onGameStateUpdated(World world) {
         runOnUiThread(() -> {
             gameView.invalidate();
+            // 添加调试信息
+            int enemyCount = 0;
+            int towerCount = 0;
+            int projectileCount = 0;
+
+            for (Entity entity : world.getAllEntities()) {
+                if (entity.hasComponent(Enemy.class)) enemyCount++;
+                if (entity.hasComponent(Tower.class)) towerCount++;
+                if (entity.hasComponent(Projectile.class)) projectileCount++;
+            }
+
+            System.out.println("调试 - 敌人: " + enemyCount +
+                    ", 防御塔: " + towerCount +
+                    ", 抛射体: " + projectileCount);
         });
     }
 
