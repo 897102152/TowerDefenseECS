@@ -402,7 +402,7 @@ public class GameView extends View {
                 paint.setColor(Color.YELLOW);
                 break;
             case CANNON:
-                paint.setColor(Color.DKGRAY);
+                paint.setColor(Color.BLUE);
                 break;
             case MAGE:
                 paint.setColor(Color.MAGENTA);
