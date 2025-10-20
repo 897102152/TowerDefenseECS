@@ -1,133 +1,153 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#2b2b2b">
 
-    <!-- 顶部控制栏 - 使用更紧凑的布局 -->
-    <LinearLayout
+    <!-- 游戏视图 - 占据整个屏幕 -->
+    <com.example.towerdefense.view.GameView
+        android:id="@+id/gameView"
         android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 资源显示 - 左上角 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="#3c3c3c">
+        android:orientation="horizontal"
+        android:background="@drawable/floating_panel_bg"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:layout_margin="16dp"
+        android:layout_gravity="top|start">
 
-        <!-- 第一行：主要控制按钮 -->
+        <!-- 人力显示 -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="4dp">
+            android:gravity="center_vertical"
+            android:paddingEnd="16dp">
 
-            <Button
-                android:id="@+id/btnStart"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:text="出怪"
-                android:textSize="14sp"
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_manpower"
+                app:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/tvManpower"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="100"
                 android:textColor="@android:color/white"
-                android:background="#4CAF50" />
-
-            <Button
-                android:id="@+id/btnPause"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:text="暂停"
                 android:textSize="14sp"
-                android:textColor="@android:color/white"
-                android:background="#FF9800" />
-
-
+                android:textStyle="bold" />
 
         </LinearLayout>
 
-        <!-- 第二行：状态信息 -->
+        <!-- 补给显示 -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="2dp">
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_supply"
+                app:tint="@android:color/white" />
 
             <TextView
-                android:id="@+id/tvGold"
-                android:layout_width="0dp"
+                android:id="@+id/tvSupply"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="金币: 100"
-                android:textSize="12sp"
-                android:gravity="center"
-                android:textColor="@android:color/white" />
-
-            <TextView
-                android:id="@+id/tvHealth"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="生命: 100"
-                android:textSize="12sp"
-                android:gravity="center"
-                android:textColor="@android:color/white" />
-
-            <TextView
-                android:id="@+id/tvWave"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="波次: 1"
-                android:textSize="12sp"
-                android:gravity="center"
-                android:textColor="@android:color/white" />
-
-        </LinearLayout>
-
-        <!-- 第三行：塔选择 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="4dp">
-
-            <Button
-                android:id="@+id/btnArcherTower"
-                android:layout_width="0dp"
-                android:layout_height="35dp"
-                android:layout_weight="1"
-                android:text="弓箭"
-                android:textSize="12sp"
+                android:layout_marginStart="8dp"
+                android:text="50"
                 android:textColor="@android:color/white"
-                android:background="#795548" />
-
-            <Button
-                android:id="@+id/btnCannonTower"
-                android:layout_width="0dp"
-                android:layout_height="35dp"
-                android:layout_weight="1"
-                android:text="炮塔"
-                android:textSize="12sp"
-                android:textColor="@android:color/white"
-                android:background="#607D8B" />
-
-            <Button
-                android:id="@+id/btnMageTower"
-                android:layout_width="0dp"
-                android:layout_height="35dp"
-                android:layout_weight="1"
-                android:text="法师"
-                android:textSize="12sp"
-                android:textColor="@android:color/white"
-                android:background="#9C27B0" />
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
         </LinearLayout>
 
     </LinearLayout>
 
-    <!-- 游戏视图 - 使用剩余所有空间 -->
-    <com.example.towerdefense.view.GameView
-        android:id="@+id/gameView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
+    <!-- 设置按钮 - 右上角 -->
+    <ImageButton
+        android:id="@+id/btnSettings"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_margin="16dp"
+        android:layout_gravity="top|end"
+        android:src="@drawable/ic_settings"
+        android:background="@drawable/floating_button_bg"
+        android:contentDescription="设置"
+        android:scaleType="centerInside"
+        app:tint="@android:color/white" />
 
-</LinearLayout>
+    <!-- ========== 建造模式主按钮 ========== -->
+    <ImageButton
+        android:id="@+id/btnBuildMode"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_margin="16dp"
+        android:layout_gravity="bottom|end"
+        android:src="@drawable/ic_deploy"
+        android:background="@drawable/floating_button_bg"
+        android:contentDescription="建造模式"
+        android:scaleType="centerInside"
+        app:tint="@android:color/white" />
+
+    <!-- ========== 建造菜单 - 默认隐藏 ========== -->
+    <LinearLayout
+        android:id="@+id/buildMenuLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/floating_panel_bg"
+        android:padding="12dp"
+        android:layout_margin="16dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:visibility="gone">
+
+        <!-- 弓箭塔按钮 -->
+        <ImageButton
+            android:id="@+id/btnArcherTower"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/ic_infantry"
+            android:background="@drawable/floating_button_bg"
+            android:contentDescription="@string/infantry"
+            android:scaleType="centerInside"
+            app:tint="@android:color/white" />
+
+        <!-- 炮塔按钮 -->
+        <ImageButton
+            android:id="@+id/btnCannonTower"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="12dp"
+            android:src="@drawable/ic_grenadier"
+            android:background="@drawable/floating_button_bg"
+            android:contentDescription="@string/Grenadier"
+            android:scaleType="centerInside"
+            app:tint="@android:color/white" />
+
+        <!-- 法师塔按钮 -->
+        <ImageButton
+            android:id="@+id/btnMageTower"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="12dp"
+            android:src="@drawable/ic_artillery"
+            android:background="@drawable/floating_button_bg"
+            android:contentDescription="@string/artillery"
+            android:scaleType="centerInside"
+            app:tint="@android:color/white" />
+
+    </LinearLayout>
+
+</FrameLayout>
