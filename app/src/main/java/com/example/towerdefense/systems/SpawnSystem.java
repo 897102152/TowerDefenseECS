@@ -6,12 +6,10 @@ import com.example.towerdefense.ecs.Entity;
 import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Enemy;
-import com.example.towerdefense.ecs.World;
+
 
 import java.util.Random;
 
-
-import javax.xml.xpath.XPath;
 
 /**
  * 敌人生成系统 - 负责管理游戏波次和自动生成敌人
@@ -22,7 +20,7 @@ public class SpawnSystem extends ECSSystem {
 
 
     // 随机数生成器，用于随机选择敌人类型
-    private Random random = new Random();
+    private final Random random = new Random();
     // 上次生成敌人的时间戳（毫秒）
     private long lastSpawnTime = 0;
     // 当前波次数
@@ -105,8 +103,8 @@ public class SpawnSystem extends ECSSystem {
         int health = 0;   // 生命值
         float speed = 0;  // 移动速度
         int reward = 0;   // 击败奖励
-        Path.PathTag pathTag;
-        pathTag = Path.PathTag.PATH_A; // 添加这行：声明 pathTag 变量
+        Path.PathTag pathTag= Path.PathTag.PATH_A;
+
         // 配置不同类型敌人的属性
         switch (type) {
             case GOBLIN:
@@ -114,7 +112,7 @@ public class SpawnSystem extends ECSSystem {
                 health = 30;
                 speed = 100;
                 reward = 5;
-                pathTag = Path.PathTag.PATH_A;
+               //pathTag = Path.PathTag.PATH_A;
                 break;
             case ORC:
                 // 兽人：中等血量、中等速度、中等奖励 - 均衡型
@@ -128,7 +126,7 @@ public class SpawnSystem extends ECSSystem {
                 health = 100;
                 speed = 40;
                 reward = 20;
-                pathTag = Path.PathTag.PATH_A;
+                //pathTag = Path.PathTag.PATH_A;
                 break;
         }
 

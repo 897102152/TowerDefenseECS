@@ -23,8 +23,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private GameEngine gameEngine;
     // 游戏视图，负责游戏画面的渲染
     private GameView gameView;
-    // UI控件
-    private Button btnStart, btnPause;
+    private Button btnPause;
     private TextView tvGold, tvHealth, tvWave;
     private int currentLevelId;
     private String currentLevelName;
@@ -100,7 +99,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private void initViews() {
         // 查找并绑定视图组件
         gameView = findViewById(R.id.gameView);
-        btnStart = findViewById(R.id.btnStart);
+        // UI控件
+        Button btnStart = findViewById(R.id.btnStart);
         btnPause = findViewById(R.id.btnPause);
         tvGold = findViewById(R.id.tvGold);
         tvHealth = findViewById(R.id.tvHealth);
@@ -167,21 +167,18 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         gameView.setGameEngine(gameEngine);
 
         // 确保在布局完成后设置屏幕尺寸
-        gameView.post(new Runnable() {
-            @Override
-            public void run() {
-                // 获取 GameView 的实际尺寸并设置给 GameEngine
-                int screenWidth = gameView.getWidth();
-                int screenHeight = gameView.getHeight();
+        gameView.post(() -> {
+            // 获取 GameView 的实际尺寸并设置给 GameEngine
+            int screenWidth = gameView.getWidth();
+            int screenHeight = gameView.getHeight();
 
-                if (screenWidth > 0 && screenHeight > 0) {
-                    gameEngine.setScreenSize(screenWidth, screenHeight);
-                    System.out.println("GameActivity: 屏幕尺寸设置为 " + screenWidth + "x" + screenHeight);
-                } else {
-                    // 如果获取失败，使用默认尺寸
-                    System.out.println("GameActivity: 无法获取屏幕尺寸，使用默认值");
-                    gameEngine.setScreenSize(1080, 1920); // 默认尺寸
-                }
+            if (screenWidth > 0 && screenHeight > 0) {
+                gameEngine.setScreenSize(screenWidth, screenHeight);
+                System.out.println("GameActivity: 屏幕尺寸设置为 " + screenWidth + "x" + screenHeight);
+            } else {
+                // 如果获取失败，使用默认尺寸
+                System.out.println("GameActivity: 无法获取屏幕尺寸，使用默认值");
+                gameEngine.setScreenSize(1080, 1920); // 默认尺寸
             }
         });
 
@@ -248,9 +245,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private void updateGameStats() {
         // TODO: 添加实际的游戏状态更新逻辑
         // 例如：从游戏引擎获取当前金币数、生命值、波次等信息
-        // tvGold.setText("金币: " + gameEngine.getGold());
-        // tvHealth.setText("生命: " + gameEngine.getHealth());
-        // tvWave.setText("波次: " + gameEngine.getWave());
+
     }
 
     /**

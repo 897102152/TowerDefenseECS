@@ -8,6 +8,8 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+
 import com.example.towerdefense.GameEngine;
 import com.example.towerdefense.ecs.Entity;
 import com.example.towerdefense.ecs.World;
@@ -56,7 +58,7 @@ public class GameView extends View {
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
         canvas.drawColor(Color.DKGRAY);
 
@@ -138,15 +140,13 @@ public class GameView extends View {
         }
 
         // 绘制路径标签
-        if (screenPoints.length > 0) {
-            paint.setTextSize(15);
-            canvas.drawText(
-                    path.getTag().toString(),
-                    screenPoints[0][0] + 10,
-                    screenPoints[0][1] - 10,
-                    paint
-            );
-        }
+        paint.setTextSize(15);
+        canvas.drawText(
+                path.getTag().toString(),
+                screenPoints[0][0] + 10,
+                screenPoints[0][1] - 10,
+                paint
+        );
     }
 
     /**
@@ -255,15 +255,30 @@ public class GameView extends View {
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
+    public boolean onTouchEvent(@NonNull MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_DOWN && gameEngine != null) {
             float x = event.getX();
             float y = event.getY();
             gameEngine.placeTower(x, y, selectedTowerType);
             invalidate();
+
+            // 确保可访问性点击事件被触发
+            performClick();
             return true;
         }
         return super.onTouchEvent(event);
+    }
+
+    /**
+     * 处理可访问性点击事件
+     * 这是为了支持辅助功能服务（如 TalkBack）
+     */
+    @Override
+    public boolean performClick() {
+        super.performClick();
+        // 可访问性点击的逻辑（如果需要的话）
+        // 对于塔防游戏，通常不需要额外处理，因为 onTouchEvent 已经处理了塔的放置
+        return true;
     }
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {

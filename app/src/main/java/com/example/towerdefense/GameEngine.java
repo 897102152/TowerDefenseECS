@@ -23,7 +23,7 @@ import java.util.List; // 确保有这行导入
  * 负责管理游戏循环、实体创建、系统更新和游戏状态
  */
 public class GameEngine {
-    private World world;
+    private final World world;
     private final Handler gameHandler;
     private Runnable gameLoop;
     private boolean isRunning = false;
@@ -161,7 +161,7 @@ public class GameEngine {
                     health = 30;
                     speed = 50;
                     reward = 5;
-                    pathTag = Path.PathTag.PATH_A;
+                //    pathTag = Path.PathTag.PATH_A;
                     break;
                 case ORC:
                     health = 60;
@@ -173,7 +173,7 @@ public class GameEngine {
                     health = 100;
                     speed = 20;
                     reward = 20;
-                    pathTag = Path.PathTag.PATH_A;
+                //    pathTag = Path.PathTag.PATH_A;
                     break;
             }
 
