@@ -8,6 +8,8 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+
 import com.example.towerdefense.GameEngine;
 import com.example.towerdefense.ecs.Entity;
 import com.example.towerdefense.ecs.World;
@@ -24,6 +26,12 @@ public class GameView extends View {
     private GameEngine gameEngine;
     private Tower.Type selectedTowerType = Tower.Type.ARCHER;
     private Paint paint;
+    // 网格系统相关属性
+    private boolean showGrid = true; // 是否显示网格
+    private float gridSizePercentage = 0.08f; // 网格大小为屏幕宽度的8%
+    private int gridSize; // 实际网格大小（像素），根据屏幕尺寸计算
+    private Paint gridPaint;
+    private boolean isBuildMode = true; // 是否处于建造模式
 
     public GameView(Context context) {
         super(context);
@@ -40,12 +48,45 @@ public class GameView extends View {
         init();
     }
 
+
+
     private void init() {
         paint = new Paint();
         paint.setAntiAlias(true);
         setBackgroundColor(Color.DKGRAY);
+        // 初始化网格画笔
+        gridPaint = new Paint();
+        gridPaint.setColor(Color.argb(80, 255, 255, 255)); // 半透明白色
+        gridPaint.setStrokeWidth(1f);
     }
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
 
+        // 当视图尺寸变化时，重新计算网格大小
+        calculateGridSize();
+
+        System.out.println("GameView: 屏幕尺寸变化 " + w + "x" + h);
+        System.out.println("GameView: 网格大小 " + gridSize + "px");
+    }
+    /**
+     * 根据屏幕尺寸计算网格大小
+     */
+    private void calculateGridSize() {
+        int screenWidth = getWidth();
+        int screenHeight = getHeight();
+
+        if (screenWidth > 0 && screenHeight > 0) {
+            // 使用屏幕宽度的百分比作为网格大小
+            gridSize = (int) (screenWidth * gridSizePercentage);
+
+            // 确保网格大小在合理范围内
+            gridSize = Math.max(30, Math.min(gridSize, 100));
+        } else {
+            // 默认网格大小
+            gridSize = 60;
+        }
+    }
     public void setGameEngine(GameEngine gameEngine) {
         this.gameEngine = gameEngine;
     }
@@ -56,7 +97,7 @@ public class GameView extends View {
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
         canvas.drawColor(Color.DKGRAY);
 
@@ -74,6 +115,10 @@ public class GameView extends View {
             canvas.drawText("World is null", 50, 100, paint);
             return;
         }
+        // 绘制网格（在建造模式下）
+        if (showGrid && isBuildMode) {
+            drawGrid(canvas);
+        }
 
         // 修复方法调用
         drawMap(canvas, world);
@@ -85,6 +130,123 @@ public class GameView extends View {
         paint.setTextSize(20);
         int entityCount = world.getAllEntities().size();
         canvas.drawText("实体数量: " + entityCount, 10, getHeight() - 20, paint);
+        // 添加网格信息显示
+        canvas.drawText("网格: " + gridSize + "px", 10, getHeight() - 50, paint);
+    }
+    /**
+     * 绘制网格
+     */
+    private void drawGrid(Canvas canvas) {
+        int width = getWidth();
+        int height = getHeight();
+
+        // 绘制垂直线
+        for (int x = 0; x <= width; x += gridSize) {
+            canvas.drawLine(x, 0, x, height, gridPaint);
+        }
+
+        // 绘制水平线
+        for (int y = 0; y <= height; y += gridSize) {
+            canvas.drawLine(0, y, width, y, gridPaint);
+        }
+
+        // 绘制网格交叉点（可选）
+        gridPaint.setColor(Color.argb(120, 255, 255, 255));
+        for (int x = gridSize; x < width; x += gridSize) {
+            for (int y = gridSize; y < height; y += gridSize) {
+                canvas.drawCircle(x, y, 2f, gridPaint);
+            }
+        }
+        gridPaint.setColor(Color.argb(80, 255, 255, 255)); // 恢复颜色
+    }
+    /**
+     * 将屏幕坐标转换为网格坐标
+     */
+    private GridPosition convertToGridPosition(float screenX, float screenY) {
+        int gridX = (int) (screenX / gridSize);
+        int gridY = (int) (screenY / gridSize);
+        return new GridPosition(gridX, gridY);
+    }
+
+    /**
+     * 将网格坐标转换为屏幕坐标（网格中心点）
+     */
+    private ScreenPosition convertToScreenPosition(int gridX, int gridY) {
+        float screenX = gridX * gridSize + gridSize / 2f;
+        float screenY = gridY * gridSize + gridSize / 2f;
+        return new ScreenPosition(screenX, screenY);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN && gameEngine != null) {
+            float x = event.getX();
+            float y = event.getY();
+
+            if (isBuildMode) {
+                // 建造模式：将点击位置吸附到网格
+                GridPosition gridPos = convertToGridPosition(x, y);
+                ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
+
+                gameEngine.placeTower(screenPos.x, screenPos.y, selectedTowerType);
+                System.out.println("放置塔在网格位置: (" + gridPos.x + ", " + gridPos.y + ")");
+            } else {
+                // 非建造模式：直接使用原始坐标
+                gameEngine.placeTower(x, y, selectedTowerType);
+            }
+
+            invalidate();
+            performClick();
+            return true;
+        }
+        return super.onTouchEvent(event);
+    }
+    /**
+     * 处理可访问性点击事件
+     */
+    @Override
+    public boolean performClick() {
+        super.performClick();
+        return true;
+    }
+
+    // 网格位置辅助类
+    private static class GridPosition {
+        final int x;
+        final int y;
+
+        GridPosition(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    // 屏幕位置辅助类
+    private static class ScreenPosition {
+        final float x;
+        final float y;
+
+        ScreenPosition(float x, float y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    // 网格系统公共方法
+    public void setShowGrid(boolean showGrid) {
+        this.showGrid = showGrid;
+        invalidate();
+    }
+
+    public void setGridSizePercentage(float percentage) {
+        this.gridSizePercentage = Math.max(0.05f, Math.min(percentage, 0.2f)); // 限制在5%-20%之间
+        calculateGridSize();
+        invalidate();
+    }
+
+    public void setBuildMode(boolean buildMode) {
+        this.isBuildMode = buildMode;
+        invalidate();
     }
 
     /**
@@ -132,15 +294,13 @@ public class GameView extends View {
         }
 
         // 绘制路径标签
-        if (screenPoints.length > 0) {
-            paint.setTextSize(15);
-            canvas.drawText(
-                    path.getTag().toString(),
-                    screenPoints[0][0] + 10,
-                    screenPoints[0][1] - 10,
-                    paint
-            );
-        }
+        paint.setTextSize(15);
+        canvas.drawText(
+                path.getTag().toString(),
+                screenPoints[0][0] + 10,
+                screenPoints[0][1] - 10,
+                paint
+        );
     }
 
     /**
@@ -248,15 +408,5 @@ public class GameView extends View {
         canvas.drawText("点击放置塔", 10, textSize * 2 + 5, paint);
     }
 
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if (event.getAction() == MotionEvent.ACTION_DOWN && gameEngine != null) {
-            float x = event.getX();
-            float y = event.getY();
-            gameEngine.placeTower(x, y, selectedTowerType);
-            invalidate();
-            return true;
-        }
-        return super.onTouchEvent(event);
-    }
+
 }
