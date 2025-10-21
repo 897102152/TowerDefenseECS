@@ -19,4 +19,9 @@
     <string name="Grenadier">掷弹兵</string>
     <string name="artillery">炮兵</string>
     <string name="infantry">步兵</string>
+    <string name="PauseGame">游戏暂停</string>
+    <string name="BackGame">回到游戏</string>
+    <string name="RestartGame">重新开始</string>
+    <string name="BacktoMainMenu">返回主菜单</string>
+    <string name="BacktoMain">返回</string>
 </resources>

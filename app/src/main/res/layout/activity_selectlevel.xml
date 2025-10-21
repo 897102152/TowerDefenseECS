@@ -4,7 +4,18 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-
+    <!-- 返回按钮 - 添加在左上角 -->
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:src="@drawable/back_to_main"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/BacktoMain"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="16dp" />
     <TextView
         android:id="@+id/str_selection"
         android:text="@string/level_list"
@@ -15,7 +26,7 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginTop="3dp"
-        android:layout_marginStart="6dp"
+        android:layout_marginStart="200dp"
     />
 
 

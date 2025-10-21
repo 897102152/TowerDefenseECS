@@ -38,6 +38,7 @@ public class GameEngine {
     // 屏幕尺寸字段
     private int screenWidth;
     private int screenHeight;
+    private int currentLevelId;
 
     public interface GameUpdateListener {
         void onGameStateUpdated(World world);
@@ -303,25 +304,9 @@ public class GameEngine {
         }
     }
 
-    public void stopGame() {
-        isRunning = false;
-        if (gameLoop != null) {
-            gameHandler.removeCallbacks(gameLoop);
-        }
-    }
 
-    public void pauseGame() {
-        isRunning = false;
-        if (gameLoop != null) {
-            gameHandler.removeCallbacks(gameLoop);
-        }
-    }
 
-    public void resumeGame() {
-        if (!isRunning) {
-            startGame();
-        }
-    }
+
 
     public World getWorld() {
         return world;
@@ -359,6 +344,53 @@ public class GameEngine {
 
         // 重新开始游戏
         startGame();
+    }
+    /**
+     * 暂停游戏
+     */
+    public void pauseGame() {
+        isRunning = false;
+        if (gameLoop != null) {
+            gameHandler.removeCallbacks(gameLoop);
+        }
+        System.out.println("GameEngine: 游戏已暂停");
+    }
+
+    /**
+     * 恢复游戏
+     */
+    public void resumeGame() {
+        if (!isRunning) {
+            startGame();
+        }
+        System.out.println("GameEngine: 游戏已恢复");
+    }
+
+    /**
+     * 停止游戏
+     */
+    public void stopGame() {
+        isRunning = false;
+        if (gameLoop != null) {
+            gameHandler.removeCallbacks(gameLoop);
+        }
+        System.out.println("GameEngine: 游戏已停止");
+    }
+
+    /**
+     * 重新开始游戏
+     */
+    public void restartGame() {
+        stopGame();
+
+        // 清除所有实体
+        world.clearEntities();
+
+        // 重新初始化系统
+        setupSystems();
+        setupLevelSystem(currentLevelId);
+
+        System.out.println("GameEngine: 游戏已重新开始");
     }
     /**
      * 检查所有系统状态

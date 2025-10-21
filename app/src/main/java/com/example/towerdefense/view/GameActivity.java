@@ -6,8 +6,10 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
 
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog; // 添加这行导入
 import com.example.towerdefense.GameEngine;
 import com.example.towerdefense.R;
 import com.example.towerdefense.components.Tower;
@@ -32,7 +34,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     // ========== 建造模式控制 ==========
     private boolean isBuildMode = false;
     private LinearLayout buildMenuLayout;
+    private AlertDialog pauseDialog;
+    private boolean isGamePaused = false;
 
+    private OnBackPressedCallback onBackPressedCallback;
     /**
      * Activity创建时的回调方法
      */
@@ -61,6 +66,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 初始化视图组件
         initViews();
+        initPauseMenu();
         // 设置游戏引擎
         setupGameEngine();
 
@@ -131,11 +137,204 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             gameView.setSelectedTowerType(Tower.Type.MAGE);
             Toast.makeText(this, "选中法师塔", Toast.LENGTH_SHORT).show();
         });
+        findViewById(R.id.btnSettings).setOnClickListener(v -> {
+            Toast.makeText(this, "设置按钮被点击", Toast.LENGTH_SHORT).show();
+            showPauseMenu();
+        });
 
         // 初始状态：建造模式关闭
         setBuildMode(false);
     }
 
+    /**
+     * 初始化暂停菜单
+     */
+    private void initPauseMenu() {
+        // 创建暂停菜单对话框
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.PauseMenuDialogTheme);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_pause_menu, null);
+        builder.setView(dialogView);
+
+        // 设置对话框不可取消（必须通过按钮关闭）
+        builder.setCancelable(false);
+
+        pauseDialog = builder.create();
+
+        // 设置对话框背景透明
+        if (pauseDialog.getWindow() != null) {
+            pauseDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        // 绑定按钮事件
+        setupPauseMenuButtons(dialogView);
+    }
+
+    /**
+     * 设置暂停菜单按钮事件
+     */
+    private void setupPauseMenuButtons(View dialogView) {
+        // 回到游戏按钮
+        dialogView.findViewById(R.id.btnResume).setOnClickListener(v -> {
+            resumeGameFromPause();
+        });
+
+        // 重新开始按钮
+        dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
+            restartGame();
+        });
+
+        // 返回主菜单按钮
+        dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
+            returnToMainMenu();
+        });
+    }
+
+    /**
+     * 显示暂停菜单
+     */
+    private void showPauseMenu() {
+        //Toast.makeText(this, "showPauseMenu方法被调用", Toast.LENGTH_SHORT).show();
+        if (pauseDialog != null && !pauseDialog.isShowing()) {
+            // 暂停游戏
+            pauseGame();
+            // 显示暂停菜单
+            pauseDialog.show();
+            isGamePaused = true;
+            System.out.println("GameActivity: 游戏已暂停，显示暂停菜单");
+        }
+    }
+
+    /**
+     * 从暂停状态恢复游戏
+     */
+    private void resumeGameFromPause() {
+        if (pauseDialog != null && pauseDialog.isShowing()) {
+            pauseDialog.dismiss();
+            resumeGame();
+            isGamePaused = false;
+            System.out.println("GameActivity: 游戏已恢复");
+        }
+    }
+
+    /**
+     * 暂停游戏
+     */
+    private void pauseGame() {
+        if (gameEngine != null) {
+            gameEngine.pauseGame();
+        }
+        // 如果建造模式开启，先关闭建造模式
+        if (isBuildMode) {
+            setBuildMode(false);
+        }
+    }
+
+    /**
+     * 恢复游戏
+     */
+    private void resumeGame() {
+        if (gameEngine != null && !gameEngine.isRunning()) {
+            gameEngine.resumeGame();
+        }
+    }
+
+    /**
+     * 重新开始游戏
+     */
+    private void restartGame() {
+        if (pauseDialog != null && pauseDialog.isShowing()) {
+            pauseDialog.dismiss();
+        }
+
+        // 重新创建游戏引擎
+        setupGameEngine();
+        // 开始游戏
+        startGame();
+
+        Toast.makeText(this, "游戏重新开始", Toast.LENGTH_SHORT).show();
+        System.out.println("GameActivity: 游戏重新开始");
+    }
+
+    /**
+     * 返回主菜单
+     */
+    private void returnToMainMenu() {
+        if (pauseDialog != null && pauseDialog.isShowing()) {
+            pauseDialog.dismiss();
+        }
+
+        // 停止游戏
+        if (gameEngine != null) {
+            gameEngine.stopGame();
+        }
+
+        // 结束当前Activity，返回主菜单
+        finish();
+
+        Toast.makeText(this, "返回主菜单", Toast.LENGTH_SHORT).show();
+        System.out.println("GameActivity: 返回主菜单");
+    }
+
+    /**
+     * Activity恢复时的回调
+     */
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 如果游戏不是因为暂停菜单而暂停，则恢复游戏
+        if (!isGamePaused && gameEngine != null && !gameEngine.isRunning()) {
+            gameEngine.resumeGame();
+        }
+        hideSystemUI();
+    }
+
+    /**
+     * Activity暂停时的回调
+     */
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 如果不是因为显示暂停菜单而暂停，则暂停游戏
+        if (!isGamePaused && gameEngine != null) {
+            gameEngine.pauseGame();
+        }
+    }
+
+    /**
+     * Activity销毁时的回调
+     */
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // 清理资源
+        if (pauseDialog != null && pauseDialog.isShowing()) {
+            pauseDialog.dismiss();
+        }
+        if (gameEngine != null) {
+            gameEngine.stopGame();
+        }
+    }
+
+    /**
+     * 处理返回键
+     */
+    private void setupBackPressedHandler() {
+        onBackPressedCallback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                // 如果暂停菜单正在显示，则关闭它
+                if (pauseDialog != null && pauseDialog.isShowing()) {
+                    resumeGameFromPause();
+                } else {
+                    // 否则显示暂停菜单
+                    showPauseMenu();
+                }
+            }
+        };
+
+        // 将回调添加到 OnBackPressedDispatcher
+        getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
+    }
 
 
     /**
@@ -229,37 +428,9 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         });
     }
 
-    /**
-     * Activity恢复时的回调
-     */
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (gameEngine != null && !gameEngine.isRunning()) {
-            gameEngine.resumeGame();
-        }
-        hideSystemUI();
-    }
 
-    /**
-     * Activity暂停时的回调
-     */
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (gameEngine != null) {
-            gameEngine.pauseGame();
-        }
-    }
 
-    /**
-     * Activity销毁时的回调
-     */
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (gameEngine != null) {
-            gameEngine.stopGame();
-        }
-    }
+
+
+
 }

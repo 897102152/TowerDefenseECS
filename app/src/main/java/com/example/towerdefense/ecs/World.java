@@ -171,4 +171,13 @@ public class World {
         }
         return result;
     }
+
+    /**
+     * 清除所有实体
+     */
+    public void clearEntities() {
+        entities.clear();
+        //componentEntities.clear();
+        System.out.println("World: 所有实体已清除");
+    }
 }

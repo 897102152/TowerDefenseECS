@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/dialog_background"
+    android:padding="24dp">
+
+    <!-- 标题 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/PauseGame"
+        android:textColor="@android:color/white"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <!-- 回到游戏按钮 -->
+    <Button
+        android:id="@+id/btnResume"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/BackGame"
+        android:textColor="@android:color/black"
+        android:background="@drawable/button_pause_menu"
+        android:layout_marginBottom="12dp"
+        android:textSize="16sp" />
+
+    <!-- 重新开始按钮 -->
+    <Button
+        android:id="@+id/btnRestart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/RestartGame"
+        android:textColor="@android:color/black"
+        android:background="@drawable/button_pause_menu"
+        android:layout_marginBottom="12dp"
+        android:textSize="16sp" />
+
+    <!-- 返回主菜单按钮 -->
+    <Button
+        android:id="@+id/btnMainMenu"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/BacktoMainMenu"
+        android:textColor="@android:color/black"
+        android:background="@drawable/button_pause_menu"
+        android:textSize="16sp" />
+
+</LinearLayout>
