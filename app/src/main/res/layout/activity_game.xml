@@ -41,7 +41,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="100"
+                android:text="@string/init_manpower"
                 android:textColor="@android:color/white"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -66,7 +66,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="50"
+                android:text="@string/init_supply"
                 android:textColor="@android:color/white"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -84,7 +84,7 @@
         android:layout_gravity="top|end"
         android:src="@drawable/ic_settings"
         android:background="@drawable/floating_button_bg"
-        android:contentDescription="设置"
+        android:contentDescription="@string/settings"
         android:scaleType="centerInside"
         app:tint="@android:color/white" />
 
@@ -97,7 +97,7 @@
         android:layout_gravity="bottom|end"
         android:src="@drawable/ic_deploy"
         android:background="@drawable/floating_button_bg"
-        android:contentDescription="建造模式"
+        android:contentDescription="@string/deploy"
         android:scaleType="centerInside"
         app:tint="@android:color/white" />
 

@@ -6,7 +6,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.Toast;
-
+import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AlertDialog; // 添加这行导入
@@ -30,7 +30,9 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private GameView gameView;
     private int currentLevelId;
     private String currentLevelName;
-
+    // ========== 资源显示控件 ==========
+    private TextView tvManpower;
+    private TextView tvSupply;
     // ========== 建造模式控制 ==========
     private boolean isBuildMode = false;
     private LinearLayout buildMenuLayout;
@@ -69,6 +71,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         initPauseMenu();
         // 设置游戏引擎
         setupGameEngine();
+
+
 
         // 自动开始游戏
         startGame();
@@ -113,7 +117,23 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 查找并绑定视图组件
         gameView = findViewById(R.id.gameView);
         buildMenuLayout = findViewById(R.id.buildMenuLayout);
-
+        // ========== 初始化资源显示控件 ==========
+        tvManpower = findViewById(R.id.tvManpower);
+        tvSupply = findViewById(R.id.tvSupply);
+        // 初始资源显示
+        if (tvManpower != null && tvSupply != null) {
+            // 初始值从资源管理器获取
+            if (gameEngine != null) {
+                int manpower = gameEngine.getResourceManager().getManpower();
+                int supply = gameEngine.getResourceManager().getSupply();
+                tvManpower.setText(String.valueOf(manpower));
+                tvSupply.setText(String.valueOf(supply));
+            } else {
+                // 默认值
+                tvManpower.setText("100");
+                tvSupply.setText("50");
+            }
+        }
         // ========== 建造模式主按钮 ==========
         findViewById(R.id.btnBuildMode).setOnClickListener(v -> {
             toggleBuildMode();
@@ -392,9 +412,16 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         gameEngine = new GameEngine(this, currentLevelId);
         gameEngine.setUpdateListener(this);
         gameView.setGameEngine(gameEngine);
-
+        // 立即更新资源显示
+        if (tvManpower != null && tvSupply != null) {
+            int manpower = gameEngine.getResourceManager().getManpower();
+            int supply = gameEngine.getResourceManager().getSupply();
+            tvManpower.setText(String.valueOf(manpower));
+            tvSupply.setText(String.valueOf(supply));
+        }
         Toast.makeText(this, "当前关卡: " + currentLevelName, Toast.LENGTH_SHORT).show();
     }
+
 
     /**
      * 开始游戏
@@ -428,9 +455,57 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         });
     }
 
+    /**
+     * 资源更新回调 - 新增方法
+     */
+    /**
+     * 资源更新回调 - 更新UI显示
+     */
+    @Override
+    public void onResourcesUpdated(int manpower, int supply) {
+        runOnUiThread(() -> {
+            // 更新UI显示资源信息
+            if (tvManpower != null) {
+                tvManpower.setText(String.valueOf(manpower));
+            }
+            if (tvSupply != null) {
+                tvSupply.setText(String.valueOf(supply));
+            }
+
+            System.out.println("GameActivity: 资源更新 - 人力:" + manpower + " 补给:" + supply);
+        });
+    }
+
+    /**
+     * 敌人被击败回调 - 新增方法
+     */
+    @Override
+    public void onEnemyDefeated(Enemy enemy, int reward) {
+        runOnUiThread(() -> {
+            // 显示击败敌人的反馈
+            String enemyName = "";
+            switch (enemy.type) {
+                case GOBLIN:
+                    enemyName = "哥布林";
+                    break;
+                case ORC:
+                    enemyName = "兽人";
+                    break;
+                case TROLL:
+                    enemyName = "巨魔";
+                    break;
+            }
+
+            String message = "击败" + enemyName + "! 获得补给: " + reward;
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+
+            System.out.println("GameActivity: " + message);
+        });
+    }
+    }
 
 
 
 
 
-}
+

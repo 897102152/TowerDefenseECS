@@ -45,6 +45,10 @@ public class Tower implements Component {
      */
     public long lastAttackTime;
 
+    // 新增：资源消耗
+    public int manpowerCost;
+    public int supplyCost;
+
     /**
      * 构造函数 - 初始化防御塔属性
      * @param type 塔类型，决定基础属性模板
@@ -52,13 +56,19 @@ public class Tower implements Component {
      * @param range 攻击范围，塔的有效攻击距离
      * @param attackSpeed 攻击速度，每秒攻击次数
      */
-    public Tower(Type type, int damage, float range, float attackSpeed) {
+    public Tower(Type type, int damage, float range, float attackSpeed, int manpowerCost, int supplyCost) {
         this.type = type;
         this.damage = damage;
         this.range = range;
         this.attackSpeed = attackSpeed;
         this.lastAttackTime = 0; // 初始化为0，表示可以立即攻击
+        this.manpowerCost = manpowerCost;
+        this.supplyCost = supplyCost;
+
+
     }
+    public int getManpowerCost() { return manpowerCost; }
+    public int getSupplyCost() { return supplyCost; }
 
     // ========== Getter 方法 ==========
 

@@ -6,7 +6,9 @@ import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Tower;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
+import com.example.towerdefense.managers.ResourceManager;
 import com.example.towerdefense.ecs.World;
+import com.example.towerdefense.GameEngine; // 添加这行导入
 import java.util.List;
 
 /**
@@ -15,9 +17,11 @@ import java.util.List;
  * 继承自ECSSystem，专门处理具有Transform和Tower组件的实体
  */
 public class AttackSystem extends ECSSystem {
-
-
-
+    private ResourceManager resourceManager;
+    private GameEngine gameEngine; // 添加GameEngine引用
+    public void setGameEngine(GameEngine gameEngine) {
+        this.gameEngine = gameEngine;
+    }
 
     // 修改构造函数，确保能访问到世界
 
@@ -28,7 +32,12 @@ public class AttackSystem extends ECSSystem {
     public AttackSystem() {
         super(Transform.class, Tower.class);
     }
-
+    /**
+     * 设置资源管理器
+     */
+    public void setResourceManager(ResourceManager resourceManager) {
+        this.resourceManager = resourceManager;
+    }
     /**
      * 更新方法 - 每帧调用，处理所有防御塔的攻击逻辑
      * @param deltaTime 距离上一帧的时间间隔（秒）

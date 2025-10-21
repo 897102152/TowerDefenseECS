@@ -9,7 +9,7 @@ import com.example.towerdefense.components.Projectile;
 import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Path;
 import java.util.List;
-
+import com.example.towerdefense.GameEngine;
 
 
 
@@ -20,15 +20,17 @@ import java.util.List;
  */
 
 public class MovementSystem extends ECSSystem {
-
+    private GameEngine gameEngine;
 
     private float screenWidth;
     private float screenHeight;
 
-    /**
-     * 设置世界引用
-     */
 
+// 添加 setGameEngine 方法
+    public void setGameEngine(GameEngine gameEngine) {
+        this.gameEngine = gameEngine;
+        System.out.println("MovementSystem: GameEngine引用已设置");
+    }
     /**
      * 预设路径点 - 定义敌人从起点到终点的移动路径
      * 每个点包含[x, y]坐标，敌人按顺序经过这些点
@@ -38,6 +40,7 @@ public class MovementSystem extends ECSSystem {
         this.screenWidth = width;
         this.screenHeight = height;
     }
+
     /**
      * 构造函数 - 指定该系统处理的组件类型
      * 处理所有具有Transform组件的实体
@@ -45,6 +48,7 @@ public class MovementSystem extends ECSSystem {
     public MovementSystem() {
         super(Transform.class);
     }
+
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
@@ -53,6 +57,7 @@ public class MovementSystem extends ECSSystem {
 
     /**
      * 更新方法 - 每帧调用，处理所有实体的移动逻辑
+     *
      * @param deltaTime 距离上一帧的时间间隔（秒），用于帧率无关的移动计算
      */
     @Override
@@ -157,9 +162,10 @@ public class MovementSystem extends ECSSystem {
 
     /**
      * 移动弹道 - 处理弹道向目标的移动和碰撞检测
+     *
      * @param projectile 弹道实体
-     * @param transform 弹道的位置组件
-     * @param deltaTime 时间增量
+     * @param transform  弹道的位置组件
+     * @param deltaTime  时间增量
      */
     private void moveProjectile(Entity projectile, Transform transform, float deltaTime) {
         Projectile projComp = projectile.getComponent(Projectile.class);
@@ -181,8 +187,17 @@ public class MovementSystem extends ECSSystem {
                 if (targetHealth != null) {
                     // 对目标造成伤害
                     targetHealth.takeDamage(projComp.damage);
-                    // 如果目标死亡，从世界中移除
+
+                    // 如果目标死亡，处理奖励
                     if (!targetHealth.isAlive()) {
+                        Enemy enemyComp = target.getComponent(Enemy.class);
+                        if (enemyComp != null) {
+                            // 通过GameEngine发放奖励
+                            GameEngine gameEngine = getGameEngine();
+                            if (gameEngine != null) {
+                                gameEngine.onEnemyDefeated(enemyComp);
+                            }
+                        }
                         world.removeEntity(target);
                     }
                 }
@@ -197,5 +212,13 @@ public class MovementSystem extends ECSSystem {
             // 目标已不存在，移除弹道
             world.removeEntity(projectile);
         }
+    }
+
+    // 添加获取GameEngine的方法
+    private GameEngine getGameEngine() {
+        // 通过世界引用获取GameEngine
+        // 这需要在World类中添加相应的方法，或者通过其他方式获取
+        // 临时解决方案：在MovementSystem中添加GameEngine引用
+        return this.gameEngine;
     }
 }

@@ -24,6 +24,9 @@ public class Enemy implements Component {
     public int pathIndex;  // 当前路径点索引，用于路径跟踪
 
     public Path.PathTag pathTag;
+
+    // 新增：是否已发放奖励（避免重复发放）
+    public boolean rewardGiven = false;
     /**
      * 构造函数 - 初始化敌人属性
      * @param type 敌人类型，决定基础属性
@@ -44,6 +47,7 @@ public class Enemy implements Component {
         this.reward = reward;
         this.pathIndex = 0; // 从第一个路径点开始移动
         this.pathTag = pathTag;
+        this.rewardGiven = false;
     }
     // ========== Getter 方法 ==========
     // 提供封装访问，虽然字段是public，但getter提供了更好的API设计
@@ -114,4 +118,5 @@ public class Enemy implements Component {
     public void setPathIndex(int pathIndex) {
         this.pathIndex = pathIndex;
     }
+    public void setRewardGiven(boolean rewardGiven) { this.rewardGiven = rewardGiven; }
 }

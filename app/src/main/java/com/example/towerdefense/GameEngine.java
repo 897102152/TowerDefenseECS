@@ -3,6 +3,7 @@ package com.example.towerdefense;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.widget.Toast;
 
 import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.ecs.Entity;
@@ -15,6 +16,7 @@ import com.example.towerdefense.systems.MovementSystem;
 import com.example.towerdefense.systems.AttackSystem;
 import com.example.towerdefense.systems.SpawnSystem;
 import com.example.towerdefense.systems.LevelSystem;
+import com.example.towerdefense.managers.ResourceManager;
 
 import java.util.Random;
 import java.util.List; // 确保有这行导入
@@ -40,10 +42,15 @@ public class GameEngine {
     private int screenHeight;
     private int currentLevelId;
 
+
+    // 新增：资源管理器
+    private final ResourceManager resourceManager;
+
     public interface GameUpdateListener {
         void onGameStateUpdated(World world);
+        void onResourcesUpdated(int manpower, int supply); // 新增：资源更新回调
+        void onEnemyDefeated(Enemy enemy, int reward);     // 新增：敌人被击败回调
     }
-
     /**
      * 构造函数 - 初始化游戏引擎
      * @param context Android上下文
@@ -52,7 +59,18 @@ public class GameEngine {
     public GameEngine(Context context, int levelId) {
         world = new World();
         gameHandler = new Handler(Looper.getMainLooper());
+        // 初始化资源管理器
+        resourceManager = new ResourceManager(context);
 
+        // 设置资源变化监听器
+        resourceManager.setResourceChangeListener(new ResourceManager.ResourceChangeListener() {
+            @Override
+            public void onResourceChanged(int manpower, int supply) {
+                if (updateListener != null) {
+                    updateListener.onResourcesUpdated(manpower, supply);
+                }
+            }
+        });
         // 初始化系统
         setupSystems();
         // 初始化关卡系统
@@ -69,6 +87,11 @@ public class GameEngine {
         spawnSystem = new SpawnSystem();
         movementSystem = new MovementSystem();
         AttackSystem attackSystem = new AttackSystem();
+
+        // 设置系统依赖
+        attackSystem.setResourceManager(resourceManager);
+        attackSystem.setGameEngine(this);
+        movementSystem.setGameEngine(this); // 设置MovementSystem的GameEngine引用
 
         System.out.println("GameEngine: 系统创建完成");
 
@@ -228,25 +251,49 @@ public class GameEngine {
      * 放置防御塔
      */
     public void placeTower(float x, float y, Tower.Type type) {
+        // 根据塔类型获取消耗
+        int manpowerCost = 0;
+        int supplyCost = 0;
 
-        // 在实际游戏中，这里可以添加更多的验证逻辑，比如：
-        // - 检查金币是否足够
-        // - 检查位置是否合法（不在路径上等）
-        // - 检查是否超过塔的数量限制
+        switch (type) {
+            case ARCHER:
+                manpowerCost = 10;
+                supplyCost = 5;
+                break;
+            case CANNON:
+                manpowerCost = 20;
+                supplyCost = 15;
+                break;
+            case MAGE:
+                manpowerCost = 15;
+                supplyCost = 10;
+                break;
+        }
 
-        createTower(x, y, type);
+        // 检查资源是否足够
+        if (resourceManager.canConsume(manpowerCost, supplyCost)) {
+            // 消耗资源
+            resourceManager.consumeManpower(manpowerCost);
+            resourceManager.consumeSupply(supplyCost);
 
-        System.out.println("GameEngine: 放置防御塔 " + type + " 在位置 (" + x + ", " + y + ")");
+            // 创建防御塔
+            createTower(x, y, type, manpowerCost, supplyCost);
+            System.out.println("GameEngine: 放置防御塔 " + type + "，消耗人力:" + manpowerCost + "，补给:" + supplyCost);
 
-        if (updateListener != null) {
-            updateListener.onGameStateUpdated(world);
+            // 通知UI更新
+            if (updateListener != null) {
+                updateListener.onGameStateUpdated(world);
+            }
+        } else {
+            System.out.println("GameEngine: 资源不足，无法放置防御塔 " + type);
+            // 可以通过回调通知UI显示资源不足提示
         }
     }
 
     /**
      * 创建防御塔实体（现在作为内部方法，不暴露给外部）
      */
-    private void createTower(float x, float y, Tower.Type type) {
+    private void createTower(float x, float y, Tower.Type type, int manpowerCost, int supplyCost) {
         Entity tower = world.createEntity();
         tower.addComponent(new Transform(x, y));
 
@@ -272,9 +319,32 @@ public class GameEngine {
                 break;
         }
 
-        tower.addComponent(new Tower(type, damage, range, attackSpeed));
+        tower.addComponent(new Tower(type, damage, range, attackSpeed, manpowerCost,supplyCost));
+    }
+    /**
+     * 敌人被击败时调用（由AttackSystem调用）
+     */
+    public void onEnemyDefeated(Enemy enemy) {
+        if (!enemy.rewardGiven) {
+            // 发放补给奖励
+            resourceManager.addSupply(enemy.reward);
+            enemy.rewardGiven = true;
+
+            System.out.println("GameEngine: 击败敌人 " + enemy.type + "，获得补给:" + enemy.reward);
+
+            // 通知监听器
+            if (updateListener != null) {
+                updateListener.onEnemyDefeated(enemy, enemy.reward);
+            }
+        }
     }
 
+    /**
+     * 获取资源管理器
+     */
+    public ResourceManager getResourceManager() {
+        return resourceManager;
+    }
     public void startGame() {
         if (isRunning) return;
 
@@ -389,7 +459,7 @@ public class GameEngine {
         // 重新初始化系统
         setupSystems();
         setupLevelSystem(currentLevelId);
-
+        resourceManager.resetResources();
         System.out.println("GameEngine: 游戏已重新开始");
     }
     /**

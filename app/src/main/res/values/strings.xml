@@ -24,4 +24,7 @@
     <string name="RestartGame">重新开始</string>
     <string name="BacktoMainMenu">返回主菜单</string>
     <string name="BacktoMain">返回</string>
+    <string name="init_manpower">50</string>
+    <string name="init_supply">50</string>
+    <string name="deploy">建造模式</string>
 </resources>

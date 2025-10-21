@@ -135,7 +135,7 @@ public  class LevelSystem extends ECSSystem {
     /**
      * 创建防御塔实体
      */
-    private void createTower(float x, float y, Tower.Type type) {
+    private void createTower(float x, float y, Tower.Type type, int manpowerCost, int supplyCost) {
         Entity tower = world.createEntity();
         tower.addComponent(new Transform(x, y));
 
@@ -161,7 +161,7 @@ public  class LevelSystem extends ECSSystem {
                 break;
         }
 
-        tower.addComponent(new Tower(type, damage, range, attackSpeed));
+        tower.addComponent(new Tower(type, damage, range, attackSpeed,manpowerCost, supplyCost));
     }
 
     /**
