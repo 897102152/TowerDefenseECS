@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.os.Handler;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -33,6 +34,18 @@ public class GameView extends View {
     private Paint gridPaint;
     private boolean isBuildMode = true; // 是否处于建造模式
 
+    // 新增：路径检测和高亮相关字段
+    private GridPosition highlightedGrid = null;
+    private Paint highlightPaint;
+    private boolean showHighlight = false;
+    private Handler handler; // 添加 Handler 实例
+
+    // 新增：消息监听器接口
+    public interface GameViewListener {
+        void showGameMessage(String title, String message, String hint, boolean autoHide);
+    }
+
+    private GameViewListener gameViewListener;
     public GameView(Context context) {
         super(context);
         init();
@@ -58,6 +71,10 @@ public class GameView extends View {
         gridPaint = new Paint();
         gridPaint.setColor(Color.argb(80, 255, 255, 255)); // 半透明白色
         gridPaint.setStrokeWidth(1f);
+        // 初始化高亮画笔
+        highlightPaint = new Paint();
+        highlightPaint.setColor(Color.argb(150, 255, 0, 0)); // 半透明红色
+        highlightPaint.setStyle(Paint.Style.FILL);
     }
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
@@ -139,9 +156,7 @@ public class GameView extends View {
         // 添加网格信息显示
         canvas.drawText("网格: " + gridSize + "px", 10, getHeight() - 50, paint);
     }
-    /**
-     * 绘制网格
-     */
+    // 修改 drawGrid 方法，添加高亮网格绘制
     private void drawGrid(Canvas canvas) {
         int width = getWidth();
         int height = getHeight();
@@ -154,6 +169,13 @@ public class GameView extends View {
         // 绘制水平线
         for (int y = 0; y <= height; y += gridSize) {
             canvas.drawLine(0, y, width, y, gridPaint);
+        }
+
+        // 绘制高亮网格（如果有）
+        if (showHighlight && highlightedGrid != null) {
+            int gridX = highlightedGrid.x * gridSize;
+            int gridY = highlightedGrid.y * gridSize;
+            canvas.drawRect(gridX, gridY, gridX + gridSize, gridY + gridSize, highlightPaint);
         }
 
         // 绘制网格交叉点（可选）
@@ -192,7 +214,6 @@ public class GameView extends View {
             // 添加建造模式检查
             if (!isBuildMode) {
                 System.out.println("GameView: 建造模式未开启，无法放置防御塔");
-                // 可以在这里添加提示，比如显示Toast或者改变UI状态
                 showBuildModeRequiredMessage();
                 performClick();
                 return true;
@@ -201,8 +222,29 @@ public class GameView extends View {
             if (isBuildMode) {
                 // 建造模式：将点击位置吸附到网格
                 GridPosition gridPos = convertToGridPosition(x, y);
-                ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
 
+                // 检查网格是否在路径上
+                if (isGridOnPath(gridPos)) {
+                    System.out.println("GameView: 不能在敌人路线上部署防御塔");
+
+                    // 高亮显示被禁止的网格
+                    highlightGrid(gridPos);
+
+                    // 显示提示消息（通过回调给Activity）
+                    if (getContext() instanceof GameActivity) {
+                        ((GameActivity) getContext()).showGameMessage(
+                                "建造限制",
+                                "不能在敌人路线上部署防御塔",
+                                "请选择其他位置",
+                                true // 自动隐藏
+                        );
+                    }
+
+                    performClick();
+                    return true;
+                }
+
+                ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
                 gameEngine.placeTower(screenPos.x, screenPos.y, selectedTowerType);
                 System.out.println("放置塔在网格位置: (" + gridPos.x + ", " + gridPos.y + ")");
             } else {
@@ -216,6 +258,24 @@ public class GameView extends View {
         }
         return super.onTouchEvent(event);
     }
+
+    /**
+     * 高亮显示指定的网格
+     */
+    private void highlightGrid(GridPosition gridPos) {
+        this.highlightedGrid = gridPos;
+        this.showHighlight = true;
+        invalidate();
+
+        // 1秒后取消高亮
+        new Handler().postDelayed(() -> {
+            showHighlight = false;
+            invalidate();
+        }, 1000);
+    }
+
+
+
     /**
      * 显示需要建造模式的提示信息
      */
@@ -453,5 +513,84 @@ public class GameView extends View {
         canvas.drawText("点击放置塔", 10, textSize * 2 + 5, paint);
     }
 
+    // 添加路径检测方法
+    /**
+     * 检测指定网格位置是否有路径
+     */
+    private boolean isGridOnPath(GridPosition gridPos) {
+        if (gameEngine == null || gameEngine.getWorld() == null) {
+            return false;
+        }
 
+        World world = gameEngine.getWorld();
+        List<Entity> pathEntities = world.getEntitiesWithComponent(Path.class);
+
+        // 将网格坐标转换为屏幕坐标（网格中心）
+        ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
+
+        for (Entity pathEntity : pathEntities) {
+            Path path = pathEntity.getComponent(Path.class);
+            if (path != null && path.isVisible()) {
+                float[][] screenPoints = path.convertToScreenCoordinates(getWidth(), getHeight());
+
+                // 检查点是否在路径附近（考虑路径宽度）
+                float pathWidth = path.getPathWidth();
+                for (int i = 0; i < screenPoints.length - 1; i++) {
+                    if (isPointNearLine(screenPos.x, screenPos.y,
+                            screenPoints[i][0], screenPoints[i][1],
+                            screenPoints[i + 1][0], screenPoints[i + 1][1],
+                            pathWidth + 20)) { // 增加一些容差
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+    /**
+     * 检查点是否靠近线段
+     */
+    private boolean isPointNearLine(float px, float py, float x1, float y1, float x2, float y2, float threshold) {
+        // 计算点到线段的最短距离
+        float A = px - x1;
+        float B = py - y1;
+        float C = x2 - x1;
+        float D = y2 - y1;
+
+        float dot = A * C + B * D;
+        float len_sq = C * C + D * D;
+        float param = -1;
+
+        if (len_sq != 0) {
+            param = dot / len_sq;
+        }
+
+        float xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        float dx = px - xx;
+        float dy = py - yy;
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+
+        return distance <= threshold;
+    }
+
+
+    /**
+     * 设置游戏视图监听器
+     */
+    public void setGameViewListener(GameViewListener listener) {
+        this.gameViewListener = listener;
+    }
 }
