@@ -32,10 +32,10 @@ public  class LevelSystem extends ECSSystem {
 
         // 根据关卡ID初始化不同的关卡配置
         switch (currentLevelId) {
-            case 1: // 训练关
+            case 0: // 训练关
                 initializeTrainingLevel();
                 break;
-            case 2: // 正式关卡1
+            case 1: // 正式关卡1
                 initializeTrainingLevel();
                 //initializeForestLevel();
                 break;

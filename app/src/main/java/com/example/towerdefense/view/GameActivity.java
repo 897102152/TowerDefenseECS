@@ -40,6 +40,136 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private boolean isGamePaused = false;
 
     private OnBackPressedCallback onBackPressedCallback;
+
+    // 教程UI组件
+    private LinearLayout tutorialOverlay;
+    private TextView tutorialTitle;
+    private TextView tutorialMessage;
+    private TextView tutorialHint;
+
+    /**
+     * 初始化教程UI
+     */
+    private void initTutorialUI() {
+        View includedLayout = findViewById(R.id.tutorialOverlay);
+        if(includedLayout!=null) {
+            tutorialOverlay = findViewById(R.id.tutorialOverlay);
+            tutorialTitle = findViewById(R.id.tutorialTitle);
+            tutorialMessage = findViewById(R.id.tutorialMessage);
+            tutorialHint = findViewById(R.id.tutorialHint);
+            System.out.println("GameActivity：教学布局id已传递");
+        }
+        System.out.println("GameActivity：教学初始化成功");
+        // 设置点击监听器，用于教程推进
+        if (tutorialOverlay != null) {
+            System.out.println("GameActivity：教学点击监听器已设置");
+            tutorialOverlay.setOnClickListener(v -> {
+                if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    gameEngine.advanceTutorial();
+                    System.out.println("GameActivity：调用gameEngine.advanceTutorial方法");
+                }
+            });
+        }
+    }
+
+    /**
+     * 显示教程提示
+     */
+    private void showTutorialMessage(String title, String message, String hint) {
+        System.out.println("GameActivity: showTutorialMessage被调用，title=" + title);
+        runOnUiThread(() -> {
+            System.out.println("GameActivity: showTutorialMessage的runOnUiThread中");
+            if (tutorialOverlay != null) {
+                System.out.println("GameActivity: tutorialOverlay不为null");
+            } else {
+                System.out.println("GameActivity: tutorialOverlay为null");
+            }
+            if (tutorialTitle != null && tutorialMessage != null && tutorialHint != null) {
+                tutorialTitle.setText(title);
+                tutorialMessage.setText(message);
+                tutorialHint.setText(hint);
+                tutorialOverlay.setVisibility(View.VISIBLE);
+                System.out.println("GameActivity: 教程消息已设置并显示");
+            } else {
+                System.out.println("GameActivity: 教程UI组件有null值");
+                System.out.println("tutorialTitle: " + tutorialTitle);
+                System.out.println("tutorialMessage: " + tutorialMessage);
+                System.out.println("tutorialHint: " + tutorialHint);
+            }
+        });
+    }
+
+    /**
+     * 隐藏教程提示
+     */
+    private void hideTutorialMessage() {
+        runOnUiThread(() -> {
+            if (tutorialOverlay != null) {
+                tutorialOverlay.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    /**
+     * 教程步骤开始回调
+     */
+    @Override
+    public void onTutorialStepStarted(GameEngine.TutorialState state, String message) {
+        System.out.println("GameActivity：执行onTutorialStepStarted方法");
+        runOnUiThread(() -> {
+            System.out.println("GameActivity: 进入runOnUiThread，状态 = " + state);
+            switch (state) {
+                case WELCOME:
+                    showTutorialMessage("欢迎进入教程关",
+                            "游戏目标：建造防御塔阻止敌人到达终点,每个敌人到达终点会扣除生命值",
+                            "点击屏幕继续");
+
+                    break;
+
+                case RESOURCE_EXPLANATION:
+                    showTutorialMessage("资源系统",
+                            "人力：用于建造防御塔;补给：通过击败敌人获得;当前资源显示在左上角",
+                            "点击屏幕继续");
+                    break;
+
+                case BUILD_ARCHER_TOWER:
+                    showTutorialMessage("建造防御塔",
+                            "请按照引导建造三种防御塔:1. 点击右下角建造按钮; 2. 选择弓箭塔; 3. 在指定位置点击建造",
+                            "请建造弓箭塔");
+                    break;
+
+                case BUILD_CANNON_TOWER:
+                    showTutorialMessage("继续建造",
+                            "很好！现在请建造炮塔,炮塔伤害高但攻击速度慢",
+                            "请建造炮塔");
+                    break;
+
+                case BUILD_MAGE_TOWER:
+                    showTutorialMessage("最后一种防御塔",
+                            "现在请建造法师塔,法师塔射程最远",
+                            "请建造法师塔");
+                    break;
+
+                case WAITING_FOR_ENEMIES:
+                    showTutorialMessage("准备迎敌",
+                            "所有防御塔已建造完成！,几秒后敌人将开始出现",
+                            "请稍候...");
+                    break;
+
+                case COMPLETED:
+                    showTutorialMessage("教程完成",
+                            "敌人已经开始出现！使用你的防御塔击败它们",
+                            "祝你好运！");
+                    // 3秒后自动隐藏教程提示
+                    new Handler().postDelayed(this::hideTutorialMessage, 3000);
+                    System.out.println("GameActivity: 教程已隐藏");
+                    break;
+            }
+        });
+    }
+
+
+
     /**
      * Activity创建时的回调方法
      */
@@ -69,10 +199,12 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 初始化视图组件
         initViews();
         initPauseMenu();
+
         // 设置游戏引擎
         setupGameEngine();
 
 
+        initTutorialUI();
 
         // 自动开始游戏
         startGame();
@@ -297,17 +429,18 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
     /**
      * Activity恢复时的回调
-     */
+
     @Override
     protected void onResume() {
         super.onResume();
         // 如果游戏不是因为暂停菜单而暂停，则恢复游戏
         if (!isGamePaused && gameEngine != null && !gameEngine.isRunning()) {
             gameEngine.resumeGame();
+            System.out.println("GameActivity:游戏意外暂停，自动恢复进行");
         }
         hideSystemUI();
     }
-
+     */
     /**
      * Activity暂停时的回调
      */
@@ -428,7 +561,20 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     private void startGame() {
         if (gameEngine == null) return;
-        gameEngine.startGame();
+        System.out.println("GameActivity: 准备开始游戏");
+        System.out.println("GameActivity: 是否是教程关卡 = " + gameEngine.isTutorialLevel());
+        System.out.println("GameActivity: 当前教程状态 = " + gameEngine.getTutorialState());
+        // 如果是教程关卡，延迟开始游戏循环
+        if (gameEngine.isTutorialLevel()) {
+            System.out.println("GameActivity: 教程关卡，延迟开始游戏循环");
+            new Handler().postDelayed(() -> {
+                System.out.println("GameActivity: 现在开始游戏循环");
+                gameEngine.startGame();
+            }, 2000); // 延迟2秒，确保教程UI完全初始化
+        } else {
+            System.out.println("GameActivity: 普通关卡，立即开始游戏循环");
+            gameEngine.startGame();
+        }
     }
 
     /**

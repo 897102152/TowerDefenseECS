@@ -50,13 +50,32 @@ public class GameEngine {
         void onGameStateUpdated(World world);
         void onResourcesUpdated(int manpower, int supply); // 新增：资源更新回调
         void onEnemyDefeated(Enemy enemy, int reward);     // 新增：敌人被击败回调
+        void onTutorialStepStarted(GameEngine.TutorialState state, String message); // 新增教程回调
     }
+
+    public enum TutorialState {
+        WELCOME,               // 欢迎和游戏目标
+        RESOURCE_EXPLANATION,  // 资源系统说明
+        BUILD_ARCHER_TOWER,    // 建造弓箭塔
+        BUILD_CANNON_TOWER,    // 建造炮塔
+        BUILD_MAGE_TOWER,      // 建造法师塔
+        WAITING_FOR_ENEMIES,   // 等待敌人生成
+        COMPLETED              // 教程完成
+    }
+
+    // 添加教程相关字段
+    private TutorialState tutorialState = TutorialState.WELCOME;
+    private Handler tutorialHandler;
+    private boolean isTutorialLevel;
+    private int towersBuilt = 0;
+
     /**
      * 构造函数 - 初始化游戏引擎
      * @param context Android上下文
      * @param levelId 关卡ID
      */
     public GameEngine(Context context, int levelId) {
+        System.out.println("GameEngine: 当前关卡id：" + levelId);
         world = new World();
         gameHandler = new Handler(Looper.getMainLooper());
         // 初始化资源管理器
@@ -75,8 +94,130 @@ public class GameEngine {
         setupSystems();
         // 初始化关卡系统
         setupLevelSystem(levelId);
+        isTutorialLevel = (levelId == 0);
+        if (isTutorialLevel) {
+            initTutorial();
+        }
+    }
+    private void initTutorial() {
+        System.out.println("GameEngine: initTutorial 开始");
+        tutorialHandler = new Handler(Looper.getMainLooper());
+        tutorialState = TutorialState.WELCOME;
+        System.out.println("GameEngine: 教程状态设置为 WELCOME");
+        towersBuilt = 0;
+
+        // 延迟显示第一个教程提示
+        tutorialHandler.postDelayed(() -> {
+            System.out.println("GameEngine: 显示第一个教程提示");
+            if (updateListener != null) {
+                updateListener.onTutorialStepStarted(tutorialState, "点击屏幕继续");
+            }else{
+                System.out.println("GameEngine: 错误 - updateListener 为 null!");
+            }
+        }, 1000);
+        System.out.println("GameEngine: initTutorial 完成");
     }
 
+    /**
+     * 推进教程到下一步
+     */
+    public void advanceTutorial() {
+        if (!isTutorialLevel) return;
+
+        switch (tutorialState) {
+            case WELCOME:
+                tutorialState = TutorialState.RESOURCE_EXPLANATION;
+                showTutorialMessage("资源系统说明", "人力用于建造防御塔，补给通过击败敌人获得。点击继续");
+                break;
+
+            case RESOURCE_EXPLANATION:
+                tutorialState = TutorialState.BUILD_ARCHER_TOWER;
+                showTutorialMessage("建造弓箭塔", "请点击建造按钮，选择弓箭塔并在指定位置建造");
+                break;
+
+            case BUILD_ARCHER_TOWER:
+                // 等待玩家建造弓箭塔，这里不自动推进
+                break;
+
+            case BUILD_CANNON_TOWER:
+                // 等待玩家建造炮塔
+                break;
+
+            case BUILD_MAGE_TOWER:
+                // 等待玩家建造法师塔
+                break;
+
+            case WAITING_FOR_ENEMIES:
+                // 等待敌人生成
+                break;
+
+            case COMPLETED:
+                // 教程完成
+                break;
+        }
+    }
+
+    /**
+     * 显示教程消息
+     */
+    private void showTutorialMessage(String title, String message) {
+        if (updateListener != null) {
+            updateListener.onTutorialStepStarted(tutorialState, message);
+        }
+    }
+
+    /**
+     * 检查教程建造任务完成情况
+     */
+    public void checkTutorialBuildProgress(Tower.Type towerType) {
+        if (!isTutorialLevel) return;
+
+        switch (tutorialState) {
+            case BUILD_ARCHER_TOWER:
+                if (towerType == Tower.Type.ARCHER) {
+                    towersBuilt++;
+                    tutorialState = TutorialState.BUILD_CANNON_TOWER;
+                    showTutorialMessage("建造炮塔", "很好！现在请建造一个炮塔");
+                }
+                break;
+
+            case BUILD_CANNON_TOWER:
+                if (towerType == Tower.Type.CANNON) {
+                    towersBuilt++;
+                    tutorialState = TutorialState.BUILD_MAGE_TOWER;
+                    showTutorialMessage("建造法师塔", "不错！最后请建造一个法师塔");
+                }
+                break;
+
+            case BUILD_MAGE_TOWER:
+                if (towerType == Tower.Type.MAGE) {
+                    towersBuilt++;
+                    tutorialState = TutorialState.WAITING_FOR_ENEMIES;
+                    showTutorialMessage("准备迎敌", "所有防御塔已建造完成！几秒后敌人将开始出现");
+
+                    // 延迟生成敌人
+                    tutorialHandler.postDelayed(() -> {
+                        spawnSystem.startSpawning();
+                        tutorialState = TutorialState.COMPLETED;
+                        if (updateListener != null) {
+                            updateListener.onTutorialStepStarted(tutorialState, "教程完成！敌人开始出现");
+                        }
+                    }, 3000);
+                }
+                break;
+        }
+    }
+
+
+
+    // 添加获取教程状态的方法
+    public TutorialState getTutorialState() {
+        return tutorialState;
+    }
+
+    public boolean isTutorialLevel() {
+        return isTutorialLevel;
+    }
     /**
      * 设置游戏系统
      */
@@ -167,7 +308,7 @@ public class GameEngine {
 
     /**
      * 手动生成敌人
-     */
+
     public void spawnEnemyManually() {
         try {
             Entity enemy = world.createEntity();
@@ -221,7 +362,6 @@ public class GameEngine {
         }
     }
 
-    /**
      * 根据路径标签获取路径的起点位置
      */
     /**
@@ -269,7 +409,9 @@ public class GameEngine {
                 supplyCost = 10;
                 break;
         }
-
+        if (isTutorialLevel) {
+            checkTutorialBuildProgress(type);
+        }
         // 检查资源是否足够
         if (resourceManager.canConsume(manpowerCost, supplyCost)) {
             // 消耗资源

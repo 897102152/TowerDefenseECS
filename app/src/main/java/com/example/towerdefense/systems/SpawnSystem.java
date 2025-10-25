@@ -34,6 +34,7 @@ public class SpawnSystem extends ECSSystem {
     private int screenHeight = 1920; // 默认值
 
     private boolean isReady = false;
+    private boolean isActive = false;
 
     /**
      * 构造函数 - 这是一个全局管理系统，不需要特定组件
@@ -42,6 +43,9 @@ public class SpawnSystem extends ECSSystem {
     public SpawnSystem() {
 
         super(); // 无必需组件，处理全局生成逻辑
+    }
+    public void startSpawning() {
+        this.isActive = true;
     }
     /**
      * 设置屏幕尺寸 - 从 GameView 获取
@@ -64,7 +68,10 @@ public class SpawnSystem extends ECSSystem {
             System.out.println("SpawnSystem: 系统未就绪，等待屏幕尺寸设置");
             return;
         }
-
+        if (!isActive) {
+            System.out.println("SpawnSystem: 系统未就绪，教程未完成");
+            return;
+        }
         long currentTime = System.currentTimeMillis();
         // 获取当前时间戳，用于生成间隔控制
         // 修复：使用 System.currentTimeMillis() 而不是 ECSSystem.currentTimeMillis()

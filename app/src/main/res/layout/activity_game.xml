@@ -149,5 +149,5 @@
             app:tint="@android:color/white" />
 
     </LinearLayout>
-
+    <include layout="@layout/tutorial_overlay" />
 </FrameLayout>

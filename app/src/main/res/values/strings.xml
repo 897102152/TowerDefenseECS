@@ -27,4 +27,7 @@
     <string name="init_manpower">50</string>
     <string name="init_supply">50</string>
     <string name="deploy">建造模式</string>
+    <string name="tutorial_title">教程标题</string>
+    <string name="tutorial_content">教程内容</string>
+    <string name="hint">提示信息</string>
 </resources>
