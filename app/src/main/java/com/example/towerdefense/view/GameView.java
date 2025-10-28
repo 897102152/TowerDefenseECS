@@ -499,7 +499,23 @@ public class GameView extends View {
 
         String towerText = "选中: " + selectedTowerType.name();
         canvas.drawText(towerText, 10, textSize + 5, paint);
+        // 绘制终点计数器（在右上角显示）
+        if (gameEngine != null) {
+            paint.setColor(Color.WHITE);
+            paint.setTextSize(textSize * 0.8f);
+            String enemyCounter = "敌人通过: " + gameEngine.getEnemiesReachedEnd() + "/" + gameEngine.getMaxEnemiesAllowed();
 
+            // 根据数量改变颜色
+            if (gameEngine.getEnemiesReachedEnd() >= gameEngine.getMaxEnemiesAllowed() * 0.8) {
+                paint.setColor(Color.RED); // 接近上限时显示红色
+            } else if (gameEngine.getEnemiesReachedEnd() >= gameEngine.getMaxEnemiesAllowed() * 0.5) {
+                paint.setColor(Color.YELLOW); // 过半时显示黄色
+            }
+
+            // 计算文本宽度，使其在右上角显示
+            float textWidth = paint.measureText(enemyCounter);
+            canvas.drawText(enemyCounter, getWidth() - textWidth - 10, textSize + 5, paint);
+        }
 
         // 添加建造模式状态显示
         String buildModeText = "建造模式: " + (isBuildMode ? "开启" : "关闭");
@@ -597,4 +613,5 @@ public class GameView extends View {
     public void setGameViewListener(GameViewListener listener) {
         this.gameViewListener = listener;
     }
+
 }

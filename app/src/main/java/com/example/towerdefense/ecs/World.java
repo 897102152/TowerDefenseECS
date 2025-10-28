@@ -92,6 +92,17 @@ public class World {
                 " (world=" + (system.world != null) + ")");
     }
     /**
+     * 清除所有系统
+     */
+    public void clearSystems() {
+        // 通知所有系统世界引用即将被清除
+        for (ECSSystem system : systems) {
+            system.setWorld(null);
+        }
+        systems.clear();
+        System.out.println("World: 所有系统已清除");
+    }
+    /**
      * 更新世界 - 执行一帧的游戏逻辑
      * @param deltaTime 距离上一帧的时间间隔（秒）
      *

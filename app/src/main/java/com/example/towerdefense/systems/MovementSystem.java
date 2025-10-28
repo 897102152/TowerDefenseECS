@@ -128,6 +128,10 @@ public class MovementSystem extends ECSSystem {
                 transform.y += (dy / distance) * enemyComp.speed * deltaTime;
             }
         } else {
+            // 通知GameEngine敌人到达终点
+            if (gameEngine != null) {
+                gameEngine.onEnemyReachedEnd();
+            }
             // 敌人已经到达路径终点，从世界中移除
             if (world != null) {
                 world.removeEntity(enemy);

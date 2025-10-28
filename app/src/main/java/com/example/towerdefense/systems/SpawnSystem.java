@@ -65,19 +65,19 @@ public class SpawnSystem extends ECSSystem {
     public void update(float deltaTime) {
         // 如果系统未就绪，直接返回
         if (!isReady) {
-            System.out.println("SpawnSystem: 系统未就绪，等待屏幕尺寸设置");
+            System.out.println("SpawnSystem: 系统未就绪，isReady="+ isReady +"等待屏幕尺寸设置");
             return;
         }
         if (!isActive) {
-            System.out.println("SpawnSystem: 系统未就绪，教程未完成");
+            System.out.println("SpawnSystem: 系统未激活，当前状态: isActive=" + isActive);
             return;
         }
+
         long currentTime = System.currentTimeMillis();
-        // 获取当前时间戳，用于生成间隔控制
-        // 修复：使用 System.currentTimeMillis() 而不是 ECSSystem.currentTimeMillis()
 
         // 检查当前波次是否已完成（所有敌人都已生成）
         if (enemiesSpawned >= enemiesInWave) {
+            System.out.println("SpawnSystem: 开始新波次，当前波次: " + waveNumber);
             startNewWave(); // 开始新的波次
         }
 
@@ -86,6 +86,8 @@ public class SpawnSystem extends ECSSystem {
             spawnEnemy();      // 生成一个新敌人
             lastSpawnTime = currentTime; // 更新最后生成时间
             enemiesSpawned++;  // 增加已生成敌人数
+            System.out.println("SpawnSystem: 生成敌人 " + enemiesSpawned + "/" + enemiesInWave +
+                    "，波次: " + waveNumber);
         }
     }
 
@@ -177,4 +179,29 @@ public class SpawnSystem extends ECSSystem {
         System.err.println("SpawnSystem: 警告！找不到路径 " + pathTag + "，使用默认起点");
         return new float[]{100, 100};
     }
+    /**
+     * 重置系统状态 - 用于重新开始游戏
+     */
+    public void reset() {
+        this.waveNumber = 0;
+        this.enemiesInWave = 0;
+        this.enemiesSpawned = 0;
+        this.lastSpawnTime = 0;
+        this.isActive = false;
+        this.isReady = false;  // 重要：重置就绪状态
+        System.out.println("SpawnSystem: 系统状态已完全重置 - 波次:" + waveNumber +
+                ", 敌人生成:" + enemiesSpawned + "/" + enemiesInWave +
+                ", 激活状态:" + isActive);
     }
+    /**
+     * 设置激活状态
+     */
+    public void setActive(boolean active) {
+        this.isActive = active;
+        System.out.println("SpawnSystem: 激活状态设置为 " + active);
+    }
+
+
+
+}
+
