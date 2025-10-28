@@ -213,9 +213,13 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 case COMPLETED:
                     showGameMessage("教程完成",
                             "敌人已经开始出现！使用你的防御塔击败它们",
-                            "祝你好运！", true); // 教程完成消息自动隐藏
+                            "祝你好运！", false); // 教程完成消息自动隐藏
+                    hideTutorialMessage();
                     break;
             }
+
+
+
         });
     }
 
