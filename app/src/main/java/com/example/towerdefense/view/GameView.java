@@ -214,6 +214,7 @@ public class GameView extends View {
             // 添加建造模式检查
             if (!isBuildMode) {
                 System.out.println("GameView: 建造模式未开启，无法放置防御塔");
+
                 showBuildModeRequiredMessage();
                 performClick();
                 return true;
@@ -226,7 +227,10 @@ public class GameView extends View {
                 // 检查网格是否在路径上
                 if (isGridOnPath(gridPos)) {
                     System.out.println("GameView: 不能在敌人路线上部署防御塔");
-
+                    // 中断教程（如果是教程关卡）
+                    if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                        gameEngine.interruptTutorial();
+                    }
                     // 高亮显示被禁止的网格
                     highlightGrid(gridPos);
 

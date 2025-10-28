@@ -47,6 +47,9 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private TextView tutorialMessage;
     private TextView tutorialHint;
 
+    private boolean isShowingTutorial = false;
+    private GameEngine.TutorialState currentTutorialState = null;
+    private String currentTutorialMessage = "";
     /**
      * 初始化教程UI
      */
@@ -73,17 +76,88 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     }
 
     /**
-     * 显示教程提示
+     * 显示教程提示（具有最高优先级）
      */
     private void showTutorialMessage(String title, String message, String hint) {
-        showGameMessage(title, message, hint, false); // 教程消息不自动隐藏
+        runOnUiThread(() -> {
+            isShowingTutorial = true;
+            currentTutorialMessage = message;
+
+            if (tutorialTitle != null && tutorialMessage != null && tutorialHint != null) {
+                tutorialTitle.setText(title);
+                tutorialMessage.setText(message);
+                tutorialHint.setText(hint);
+                tutorialOverlay.setVisibility(View.VISIBLE);
+                System.out.println("GameActivity: 教程消息已显示 - " + title);
+            }
+        });
     }
 
     /**
-     * 隐藏教程提示
+     * 显示游戏消息（区分教程消息和普通消息）
+     */
+    void showGameMessage(String title, String message, String hint, boolean autoHide) {
+        runOnUiThread(() -> {
+            // 如果是教程消息，直接显示
+            if (title.contains("教程") || title.contains("建造错误")) {
+                showTutorialMessage(title, message, hint);
+                return;
+            }
+
+            // 如果是普通消息且正在显示教程，延迟显示
+            if (isShowingTutorial) {
+                System.out.println("GameActivity: 正在显示教程，延迟显示普通消息");
+                new Handler().postDelayed(() -> {
+                    showTemporaryMessage(title, message, hint, autoHide);
+                }, 10);
+            } else {
+                showTemporaryMessage(title, message, hint, autoHide);
+            }
+        });
+    }
+
+    /**
+     * 显示临时消息（非教程消息）
+     */
+    private void showTemporaryMessage(String title, String message, String hint, boolean autoHide) {
+        if (tutorialTitle != null && tutorialMessage != null && tutorialHint != null) {
+            tutorialTitle.setText(title);
+            tutorialMessage.setText(message);
+            tutorialHint.setText(hint);
+            tutorialOverlay.setVisibility(View.VISIBLE);
+            System.out.println("GameActivity: 临时消息已显示 - " + title);
+
+            // 如果设置了自动隐藏，延迟隐藏消息
+            if (autoHide) {
+                new Handler().postDelayed(() -> {
+                    hideTemporaryMessage();
+                }, 3000);
+            }
+        }
+    }
+
+    /**
+     * 隐藏临时消息，恢复教程显示
+     */
+    private void hideTemporaryMessage() {
+        runOnUiThread(() -> {
+            if (tutorialOverlay != null) {
+                tutorialOverlay.setVisibility(View.GONE);
+            }
+
+            // 恢复教程显示
+            if (isShowingTutorial && gameEngine != null) {
+                gameEngine.resumeTutorialDisplay();
+            }
+        });
+    }
+
+    /**
+     * 隐藏教程消息
      */
     private void hideTutorialMessage() {
         runOnUiThread(() -> {
+            isShowingTutorial = false;
             if (tutorialOverlay != null) {
                 tutorialOverlay.setVisibility(View.GONE);
             }
@@ -95,20 +169,20 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     @Override
     public void onTutorialStepStarted(GameEngine.TutorialState state, String message) {
-        System.out.println("GameActivity：执行onTutorialStepStarted方法");
+        System.out.println("GameActivity: 执行onTutorialStepStarted方法，状态=" + state);
         runOnUiThread(() -> {
-            System.out.println("GameActivity: 进入runOnUiThread，状态 = " + state);
+            currentTutorialState = state;
+
             switch (state) {
                 case WELCOME:
                     showTutorialMessage("欢迎进入教程关",
-                            "游戏目标：建造防御塔阻止敌人到达终点,每个敌人到达终点会扣除生命值",
+                            "游戏目标：建造防御塔阻止敌人到达终点\n每个敌人到达终点会扣除生命值",
                             "点击屏幕继续");
-
                     break;
 
                 case RESOURCE_EXPLANATION:
                     showTutorialMessage("资源系统",
-                            "人力：用于建造防御塔;补给：通过击败敌人获得;当前资源显示在左上角",
+                            "人力：用于建造防御塔\n补给：通过击败敌人获得\n当前资源显示在左上角",
                             "点击屏幕继续");
                     break;
 
@@ -637,60 +711,9 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         });
     }
 
-    // 在 GameActivity 类中添加以下方法
 
-    /**
-     * 显示游戏消息（统一的消息提示方法）
-     */
-    void showGameMessage(String title, String message, String hint, boolean autoHide) {
-        System.out.println("GameActivity: showGameMessage被调用，title=" + title);
-        runOnUiThread(() -> {
-            System.out.println("GameActivity: showGameMessage的runOnUiThread中");
-            if (tutorialOverlay != null) {
-                System.out.println("GameActivity: tutorialOverlay不为null");
-            } else {
-                System.out.println("GameActivity: tutorialOverlay为null");
-            }
-            if (tutorialTitle != null && tutorialMessage != null && tutorialHint != null) {
-                tutorialTitle.setText(title);
-                tutorialMessage.setText(message);
-                tutorialHint.setText(hint);
-                tutorialOverlay.setVisibility(View.VISIBLE);
-                System.out.println("GameActivity: 游戏消息已设置并显示");
 
-                // 如果设置了自动隐藏，延迟隐藏消息
-                if (autoHide) {
-                    new Handler().postDelayed(() -> {
-                        hideGameMessage();
-                    }, 3000); // 3秒后自动隐藏
-                }
-            } else {
-                System.out.println("GameActivity: 教程UI组件有null值");
-            }
-        });
-    }
-
-    /**
-     * 隐藏游戏消息
-     */
-    private void hideGameMessage() {
-        runOnUiThread(() -> {
-            if (tutorialOverlay != null) {
-                tutorialOverlay.setVisibility(View.GONE);
-                System.out.println("GameActivity: 游戏消息已隐藏");
-            }
-        });
-    }
-// 在 GameActivity 类中添加
-    /**
-     * 显示建造限制提示
-     */
-    public void showBuildRestrictionMessage() {
-        showGameMessage("建造限制",
-                "不能在敌人路线上部署防御塔",
-                "请选择其他位置", true);
-    }
-    }
+}
 
 
 

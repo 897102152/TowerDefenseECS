@@ -43,6 +43,9 @@ public class GameEngine {
     private int currentLevelId;
 
 
+
+
+
     // 新增：资源管理器
     private final ResourceManager resourceManager;
 
@@ -50,7 +53,7 @@ public class GameEngine {
         void onGameStateUpdated(World world);
         void onResourcesUpdated(int manpower, int supply); // 新增：资源更新回调
         void onEnemyDefeated(Enemy enemy, int reward);     // 新增：敌人被击败回调
-        void onTutorialStepStarted(GameEngine.TutorialState state, String message); // 新增教程回调
+        void onTutorialStepStarted(TutorialState state, String message); // 新增教程回调
     }
 
     public enum TutorialState {
@@ -68,7 +71,13 @@ public class GameEngine {
     private Handler tutorialHandler;
     private boolean isTutorialLevel;
     private int towersBuilt = 0;
-
+    /**
+     * 教程中断恢复机制
+     */
+    private boolean tutorialInterrupted = false;
+    private TutorialState interruptedState = null;
+    private String interruptedMessage = "";
+    private TutorialState currentTutorialState = null;
     /**
      * 构造函数 - 初始化游戏引擎
      * @param context Android上下文
@@ -178,6 +187,10 @@ public class GameEngine {
                     towersBuilt++;
                     tutorialState = TutorialState.BUILD_CANNON_TOWER;
                     showTutorialMessage("建造炮塔", "很好！现在请建造一个炮塔");
+                }else {
+                    // 如果建造了错误的塔类型，中断教程
+                    interruptTutorial();
+                    showTutorialMessage("建造错误", "请建造弓箭塔而不是" + getTowerTypeName(towerType));
                 }
                 break;
 
@@ -186,6 +199,10 @@ public class GameEngine {
                     towersBuilt++;
                     tutorialState = TutorialState.BUILD_MAGE_TOWER;
                     showTutorialMessage("建造法师塔", "不错！最后请建造一个法师塔");
+                }else {
+                    // 如果建造了错误的塔类型，中断教程
+                    interruptTutorial();
+                    showTutorialMessage("建造炮塔", "很好！现在请建造一个炮塔");
                 }
                 break;
 
@@ -203,6 +220,10 @@ public class GameEngine {
                             updateListener.onTutorialStepStarted(tutorialState, "教程完成！敌人开始出现");
                         }
                     }, 3000);
+                }else {
+                    // 如果建造了错误的塔类型，中断教程
+                    interruptTutorial();
+                    showTutorialMessage("建造法师塔", "不错！最后请建造一个法师塔");
                 }
                 break;
         }
@@ -507,10 +528,9 @@ public class GameEngine {
     private void updateGame() {
         try {
             world.update(0.016f);
-
             if (updateListener != null) {
                 updateListener.onGameStateUpdated(world);
-            }
+                      }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -632,4 +652,68 @@ public class GameEngine {
 
         System.out.println("=== 检查完成 ===");
     }
+    /**
+     * 中断教程
+     */
+    public void interruptTutorial() {
+        if (!isTutorialLevel) return;
+
+        tutorialInterrupted = true;
+        interruptedState = tutorialState;
+        interruptedMessage = getCurrentTutorialMessage();
+
+        System.out.println("GameEngine: 教程被中断，保存状态: " + interruptedState);
+    }
+
+    /**
+     * 恢复教程显示
+     */
+    public void resumeTutorialDisplay() {
+        if (!isTutorialLevel || !tutorialInterrupted) return;
+
+        tutorialInterrupted = false;
+        System.out.println("GameEngine: 恢复教程显示，状态: " + interruptedState);
+
+        // 通知Activity重新显示教程提示
+        if (updateListener != null && interruptedState != null) {
+            updateListener.onTutorialStepStarted(interruptedState, interruptedMessage);
+        }
+    }
+
+    /**
+     * 获取当前教程步骤的消息
+     */
+    private String getCurrentTutorialMessage() {
+        switch (tutorialState) {
+            case WELCOME:
+                return "欢迎进入教程关，游戏目标：建造防御塔阻止敌人到达终点";
+            case RESOURCE_EXPLANATION:
+                return "资源系统：人力用于建造防御塔，补给通过击败敌人获得";
+            case BUILD_ARCHER_TOWER:
+                return "请按照引导建造三种防御塔：1. 点击建造按钮 2. 选择弓箭塔 3. 在指定位置点击建造";
+            case BUILD_CANNON_TOWER:
+                return "很好！现在请建造炮塔，炮塔伤害高但攻击速度慢";
+            case BUILD_MAGE_TOWER:
+                return "现在请建造法师塔，法师塔射程最远";
+            case WAITING_FOR_ENEMIES:
+                return "所有防御塔已建造完成！几秒后敌人将开始出现";
+            case COMPLETED:
+                return "教程完成！敌人已经开始出现";
+            default:
+                return "请继续教程";
+        }
+    }
+    /**
+     * 获取塔类型名称
+     */
+    private String getTowerTypeName(Tower.Type type) {
+        switch (type) {
+            case ARCHER: return "弓箭塔";
+            case CANNON: return "炮塔";
+            case MAGE: return "法师塔";
+            default: return "未知类型";
+        }
+    }
+
+
 }
