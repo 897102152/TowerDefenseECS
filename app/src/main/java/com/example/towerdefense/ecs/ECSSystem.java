@@ -43,4 +43,11 @@ public abstract class ECSSystem {
         }
         return world.getEntitiesForSystem(this);
     }
+    /**
+     * 当实体从世界中移除时的回调
+     * @param entity 被移除的实体
+     */
+    public void entityRemoved(Entity entity) {
+        // 默认实现为空，子类可以重写此方法来清理资源
+    }
 }

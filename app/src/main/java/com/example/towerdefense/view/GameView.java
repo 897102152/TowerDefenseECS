@@ -40,6 +40,10 @@ public class GameView extends View {
     private boolean showHighlight = false;
     private Handler handler; // 添加 Handler 实例
 
+    // 新增：移除模式相关字段
+    private boolean isRemoveMode = false;
+    private Paint removeModePaint;
+
     // 新增：消息监听器接口
     public interface GameViewListener {
         void showGameMessage(String title, String message, String hint, boolean autoHide);
@@ -61,8 +65,6 @@ public class GameView extends View {
         init();
     }
 
-
-
     private void init() {
         paint = new Paint();
         paint.setAntiAlias(true);
@@ -75,7 +77,12 @@ public class GameView extends View {
         highlightPaint = new Paint();
         highlightPaint.setColor(Color.argb(150, 255, 0, 0)); // 半透明红色
         highlightPaint.setStyle(Paint.Style.FILL);
+        // 初始化移除模式画笔
+        removeModePaint = new Paint();
+        removeModePaint.setColor(Color.argb(150, 255, 165, 0)); // 半透明橙色
+        removeModePaint.setStyle(Paint.Style.FILL);
     }
+
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
@@ -92,6 +99,7 @@ public class GameView extends View {
         System.out.println("GameView: 屏幕尺寸变化 " + w + "x" + h);
         System.out.println("GameView: 网格大小 " + gridSize + "px");
     }
+
     /**
      * 根据屏幕尺寸计算网格大小
      */
@@ -110,13 +118,34 @@ public class GameView extends View {
             gridSize = 60;
         }
     }
+
     public void setGameEngine(GameEngine gameEngine) {
         this.gameEngine = gameEngine;
     }
 
     public void setSelectedTowerType(Tower.Type towerType) {
         this.selectedTowerType = towerType;
+        this.isRemoveMode = false; // 选择塔类型时退出移除模式
         invalidate();
+    }
+
+    /**
+     * 设置移除模式
+     */
+    public void setRemoveMode(boolean removeMode) {
+        this.isRemoveMode = removeMode;
+        if (removeMode) {
+            this.selectedTowerType = null; // 移除模式下不选择任何塔类型
+            System.out.println("GameView: 进入移除模式");
+        }
+        invalidate();
+    }
+
+    /**
+     * 获取当前是否处于移除模式
+     */
+    public boolean isRemoveMode() {
+        return isRemoveMode;
     }
 
     @Override
@@ -156,7 +185,8 @@ public class GameView extends View {
         // 添加网格信息显示
         canvas.drawText("网格: " + gridSize + "px", 10, getHeight() - 50, paint);
     }
-    // 修改 drawGrid 方法，添加高亮网格绘制
+
+    // 修改 drawGrid 方法，添加移除模式高亮
     private void drawGrid(Canvas canvas) {
         int width = getWidth();
         int height = getHeight();
@@ -175,7 +205,14 @@ public class GameView extends View {
         if (showHighlight && highlightedGrid != null) {
             int gridX = highlightedGrid.x * gridSize;
             int gridY = highlightedGrid.y * gridSize;
-            canvas.drawRect(gridX, gridY, gridX + gridSize, gridY + gridSize, highlightPaint);
+
+            if (isRemoveMode) {
+                // 移除模式下使用橙色高亮
+                canvas.drawRect(gridX, gridY, gridX + gridSize, gridY + gridSize, removeModePaint);
+            } else {
+                // 建造模式下使用红色高亮（禁止建造区域）
+                canvas.drawRect(gridX, gridY, gridX + gridSize, gridY + gridSize, highlightPaint);
+            }
         }
 
         // 绘制网格交叉点（可选）
@@ -187,6 +224,7 @@ public class GameView extends View {
         }
         gridPaint.setColor(Color.argb(80, 255, 255, 255)); // 恢复颜色
     }
+
     /**
      * 将屏幕坐标转换为网格坐标
      */
@@ -211,16 +249,25 @@ public class GameView extends View {
             float x = event.getX();
             float y = event.getY();
 
-            // 添加建造模式检查
+            // 检查是否在建造模式下
             if (!isBuildMode) {
-                System.out.println("GameView: 建造模式未开启，无法放置防御塔");
-
+                System.out.println("GameView: 建造模式未开启，无法进行操作");
                 showBuildModeRequiredMessage();
                 performClick();
                 return true;
             }
 
-            if (isBuildMode) {
+            // 移除模式处理
+            if (isRemoveMode) {
+                System.out.println("GameView: 移除模式下点击位置 (" + x + ", " + y + ")");
+                gameEngine.removeTower(x, y);
+                invalidate();
+                performClick();
+                return true;
+            }
+
+            // 建造模式处理
+            if (selectedTowerType != null) {
                 // 建造模式：将点击位置吸附到网格
                 GridPosition gridPos = convertToGridPosition(x, y);
 
@@ -235,8 +282,8 @@ public class GameView extends View {
                     highlightGrid(gridPos);
 
                     // 显示提示消息（通过回调给Activity）
-                    if (getContext() instanceof GameActivity) {
-                        ((GameActivity) getContext()).showGameMessage(
+                    if (gameViewListener != null) {
+                        gameViewListener.showGameMessage(
                                 "建造限制",
                                 "不能在敌人路线上部署防御塔",
                                 "请选择其他位置",
@@ -252,8 +299,15 @@ public class GameView extends View {
                 gameEngine.placeTower(screenPos.x, screenPos.y, selectedTowerType);
                 System.out.println("放置塔在网格位置: (" + gridPos.x + ", " + gridPos.y + ")");
             } else {
-                // 非建造模式：直接使用原始坐标
-                gameEngine.placeTower(x, y, selectedTowerType);
+                System.out.println("GameView: 建造模式下未选择塔类型");
+                if (gameViewListener != null) {
+                    gameViewListener.showGameMessage(
+                            "建造提示",
+                            "请先选择要建造的防御塔类型",
+                            "点击建造菜单中的塔图标",
+                            true
+                    );
+                }
             }
 
             invalidate();
@@ -278,23 +332,11 @@ public class GameView extends View {
         }, 1000);
     }
 
-
-
     /**
      * 显示需要建造模式的提示信息
      */
     private void showBuildModeRequiredMessage() {
-        // 这里可以添加UI提示，比如：
-        // - 显示一个短暂的Toast消息
-        // - 在游戏界面上显示提示文本
-        // - 改变UI元素的颜色或状态
-
-        // 示例：如果要在GameView上绘制提示，可以设置一个标志并在onDraw中处理
-        // 这里我们先简单地在控制台输出
         System.out.println("GameView: 请先开启建造模式来放置防御塔");
-
-        // 如果需要更明显的用户反馈，可以在这里添加：
-        // Toast.makeText(getContext(), "请先开启建造模式", Toast.LENGTH_SHORT).show();
     }
 
     /**
@@ -342,6 +384,10 @@ public class GameView extends View {
 
     public void setBuildMode(boolean buildMode) {
         this.isBuildMode = buildMode;
+        // 退出建造模式时自动退出移除模式
+        if (!buildMode) {
+            this.isRemoveMode = false;
+        }
         invalidate();
     }
 
@@ -497,8 +543,21 @@ public class GameView extends View {
         float textSize = Math.min(getWidth(), getHeight()) / 30f;
         paint.setTextSize(textSize);
 
-        String towerText = "选中: " + selectedTowerType.name();
-        canvas.drawText(towerText, 10, textSize + 5, paint);
+        // 显示当前模式状态
+        String modeText;
+        if (isRemoveMode) {
+            modeText = "移除模式：点击防御塔移除";
+            paint.setColor(Color.RED);
+        } else if (selectedTowerType != null) {
+            modeText = "建造模式 - 选中: " + selectedTowerType.name();
+            paint.setColor(Color.GREEN);
+        } else {
+            modeText = "建造模式 - 请选择塔类型";
+            paint.setColor(Color.YELLOW);
+        }
+
+        canvas.drawText(modeText, 10, textSize + 5, paint);
+
         // 绘制终点计数器（在右上角显示）
         if (gameEngine != null) {
             paint.setColor(Color.WHITE);
@@ -528,9 +587,6 @@ public class GameView extends View {
             paint.setTextSize(textSize * 0.6f);
             canvas.drawText("点击建造模式按钮来放置防御塔", 10, textSize * 3 + 5, paint);
         }
-
-        paint.setTextSize(textSize * 0.8f);
-        canvas.drawText("点击放置塔", 10, textSize * 2 + 5, paint);
     }
 
     // 添加路径检测方法
@@ -568,6 +624,7 @@ public class GameView extends View {
 
         return false;
     }
+
     /**
      * 检查点是否靠近线段
      */
@@ -606,12 +663,10 @@ public class GameView extends View {
         return distance <= threshold;
     }
 
-
     /**
      * 设置游戏视图监听器
      */
     public void setGameViewListener(GameViewListener listener) {
         this.gameViewListener = listener;
     }
-
 }

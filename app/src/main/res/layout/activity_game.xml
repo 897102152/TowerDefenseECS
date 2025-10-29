@@ -87,7 +87,6 @@
         android:contentDescription="@string/settings"
         android:scaleType="centerInside"
         app:tint="@android:color/white" />
-
     <!-- ========== 建造模式主按钮 ========== -->
     <ImageButton
         android:id="@+id/btnBuildMode"
@@ -145,6 +144,17 @@
             android:src="@drawable/ic_artillery"
             android:background="@drawable/floating_button_bg"
             android:contentDescription="@string/artillery"
+            android:scaleType="centerInside"
+            app:tint="@android:color/white" />
+        <!-- 移除按钮 -->
+        <ImageButton
+            android:id="@+id/btnBuildRemove"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="12dp"
+            android:src="@drawable/ic_build_remove"
+            android:background="@drawable/floating_button_bg"
+            android:contentDescription="@string/build_remove"
             android:scaleType="centerInside"
             app:tint="@android:color/white" />
 

@@ -73,6 +73,25 @@ public class World {
      */
     public void removeEntity(Entity entity) {
         entities.remove(entity);
+        // 通知所有系统实体已被移除
+        for (ECSSystem system : systems) {
+            system.entityRemoved(entity);
+        }
+        System.out.println("World: 实体 " + entity.getId() + " 已移除");
+    }
+
+    /**
+     * 通过实体ID获取实体
+     * @param entityId 实体ID
+     * @return 找到的实体，如果不存在则返回null
+     */
+    public Entity getEntityById(int entityId) {
+        for (Entity entity : entities) {
+            if (entity.getId() == entityId) {
+                return entity;
+            }
+        }
+        return null;
     }
 
     /**
@@ -91,6 +110,7 @@ public class World {
         System.out.println("World: 添加系统 " + system.getClass().getSimpleName() +
                 " (world=" + (system.world != null) + ")");
     }
+
     /**
      * 清除所有系统
      */
@@ -102,6 +122,7 @@ public class World {
         systems.clear();
         System.out.println("World: 所有系统已清除");
     }
+
     /**
      * 更新世界 - 执行一帧的游戏逻辑
      * @param deltaTime 距离上一帧的时间间隔（秒）
@@ -168,6 +189,7 @@ public class World {
     public List<Entity> getAllEntities() {
         return new ArrayList<>(entities);
     }
+
     /**
      * 获取所有包含指定组件的实体
      * @param componentClass 组件类
@@ -188,7 +210,27 @@ public class World {
      */
     public void clearEntities() {
         entities.clear();
-        //componentEntities.clear();
         System.out.println("World: 所有实体已清除");
+    }
+
+    /**
+     * 获取实体数量统计信息（用于调试）
+     */
+    public void printEntityStats() {
+        System.out.println("=== 实体统计 ===");
+        System.out.println("总实体数: " + entities.size());
+
+        // 按组件类型统计
+        Map<Class<? extends Component>, Integer> componentCounts = new HashMap<>();
+        for (Entity entity : entities) {
+            for (Class<? extends Component> componentType : entity.getComponentTypes()) {
+                componentCounts.put(componentType, componentCounts.getOrDefault(componentType, 0) + 1);
+            }
+        }
+
+        for (Map.Entry<Class<? extends Component>, Integer> entry : componentCounts.entrySet()) {
+            System.out.println("  " + entry.getKey().getSimpleName() + ": " + entry.getValue());
+        }
+        System.out.println("================");
     }
 }

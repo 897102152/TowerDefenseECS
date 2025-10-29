@@ -220,6 +220,19 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             Toast.makeText(this, "选中法师塔", Toast.LENGTH_SHORT).show();
         });
 
+        // 移除按钮 - 新增移除功能
+        findViewById(R.id.btnBuildRemove).setOnClickListener(v -> {
+            if (gameView.isRemoveMode()) {
+                // 如果已经在移除模式，则退出移除模式
+                gameView.setRemoveMode(false);
+                Toast.makeText(this, "退出移除模式", Toast.LENGTH_SHORT).show();
+            } else {
+                // 进入移除模式
+                gameView.setRemoveMode(true);
+                Toast.makeText(this, "移除模式：点击防御塔可移除", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         // 设置按钮
         findViewById(R.id.btnSettings).setOnClickListener(v -> {
             Toast.makeText(this, "设置按钮被点击", Toast.LENGTH_SHORT).show();

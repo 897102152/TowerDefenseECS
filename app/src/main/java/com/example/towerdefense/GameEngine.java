@@ -46,6 +46,9 @@ public class GameEngine {
     // 新增：资源管理器
     private final ResourceManager resourceManager;
 
+    // 新增：保存Context引用用于Toast
+    private final Context context;
+
     public interface GameUpdateListener {
         void onGameStateUpdated(World world);
         void onResourcesUpdated(int manpower, int supply);
@@ -89,6 +92,7 @@ public class GameEngine {
      */
     public GameEngine(Context context, int levelId) {
         System.out.println("GameEngine: 创建新游戏引擎，关卡ID: " + levelId);
+        this.context = context; // 保存Context引用
         world = new World();
         System.out.println("GameEngine: 创建新世界world");
         gameHandler = new Handler(Looper.getMainLooper());
@@ -422,6 +426,97 @@ public class GameEngine {
 
         tower.addComponent(new Tower(type, damage, range, attackSpeed, manpowerCost, supplyCost));
     }
+    /**
+     * 移除防御塔并返还人力（不返还补给）
+     */
+    public void removeTower(float x, float y) {
+        System.out.println("GameEngine: 尝试移除位置 (" + x + ", " + y + ") 的防御塔");
+
+        // 查找点击位置附近的防御塔
+        Entity towerToRemove = findTowerAtPosition(x, y);
+
+        if (towerToRemove != null) {
+            Tower towerComp = towerToRemove.getComponent(Tower.class);
+            if (towerComp != null) {
+                // 返还人力（不返还补给）
+                resourceManager.addManpower(towerComp.manpowerCost);
+                System.out.println("GameEngine: 移除防御塔 " + towerComp.type + "，返还人力:" + towerComp.manpowerCost);
+
+                // 从世界中移除实体
+                world.removeEntity(towerToRemove);
+
+                // 通知UI更新
+                if (updateListener != null) {
+                    updateListener.onGameStateUpdated(world);
+                    updateListener.onResourcesUpdated(
+                            resourceManager.getManpower(),
+                            resourceManager.getSupply()
+                    );
+                }
+
+                // 显示移除成功的Toast
+                gameHandler.post(() ->
+                        Toast.makeText(context, "移除防御塔，返还人力: " + towerComp.manpowerCost,
+                                Toast.LENGTH_SHORT).show()
+                );
+                return;
+            }
+        }
+
+        // 如果没有找到防御塔，显示提示
+        System.out.println("GameEngine: 未找到可移除的防御塔");
+        gameHandler.post(() ->
+                Toast.makeText(context, "该位置没有防御塔", Toast.LENGTH_SHORT).show()
+        );
+    }
+    /**
+     * 根据位置查找防御塔
+     */
+    private Entity findTowerAtPosition(float x, float y) {
+        float clickRadius = 50f; // 点击检测半径
+
+        for (Entity entity : world.getEntitiesWithComponent(Tower.class)) {
+            Transform transform = entity.getComponent(Transform.class);
+            if (transform != null) {
+                float distance = (float) Math.sqrt(
+                        Math.pow(transform.x - x, 2) + Math.pow(transform.y - y, 2)
+                );
+
+                if (distance <= clickRadius) {
+                    System.out.println("GameEngine: 找到防御塔，距离: " + distance);
+                    return entity;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 通过实体ID移除防御塔
+     */
+    public void removeTowerById(int entityId) {
+        Entity towerToRemove = world.getEntityById(entityId);
+        if (towerToRemove != null && towerToRemove.hasComponent(Tower.class)) {
+            Tower towerComp = towerToRemove.getComponent(Tower.class);
+            if (towerComp != null) {
+                // 返还人力（不返还补给）
+                resourceManager.addManpower(towerComp.manpowerCost);
+                System.out.println("GameEngine: 通过ID移除防御塔 " + towerComp.type + "，返还人力:" + towerComp.manpowerCost);
+
+                // 从世界中移除实体
+                world.removeEntity(towerToRemove);
+
+                // 通知UI更新
+                if (updateListener != null) {
+                    updateListener.onGameStateUpdated(world);
+                    updateListener.onResourcesUpdated(
+                            resourceManager.getManpower(),
+                            resourceManager.getSupply()
+                    );
+                }
+            }
+        }
+    }
 
     /**
      * 敌人被击败时调用（由AttackSystem调用）
@@ -628,7 +723,6 @@ public class GameEngine {
             default: return "未知类型";
         }
     }
-
     public void startGame() {
         if (isRunning) return;
 
@@ -672,6 +766,7 @@ public class GameEngine {
     public Entity getPathEntity(Path.PathTag pathTag) {
         return null;
     }
+
 
     /**
      * 获取关卡系统
