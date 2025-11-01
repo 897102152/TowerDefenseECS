@@ -25,9 +25,8 @@ import android.os.Handler;
  */
 public class GameActivity extends AppCompatActivity implements GameEngine.GameUpdateListener {
 
-    // 游戏引擎实例，负责游戏逻辑处理
+    // ========== 核心游戏组件 ==========
     private GameEngine gameEngine;
-    // 游戏视图，负责游戏画面的渲染
     private GameView gameView;
     private int currentLevelId;
     private String currentLevelName;
@@ -36,28 +35,27 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private TextView tvManpower;
     private TextView tvSupply;
     private LinearLayout buildMenuLayout;
+    private LinearLayout tutorialOverlay;
+    private TextView tutorialTitle;
+    private TextView tutorialMessage;
+    private TextView tutorialHint;
 
     // ========== 状态控制 ==========
     private boolean isBuildMode = false;
     private boolean isGamePaused = false;
     private boolean isGameOver = false;
     private boolean isShowingTutorial = false;
+    private GameEngine.TutorialState currentTutorialState = null;
+    private String currentTutorialMessage = "";
 
     // ========== 对话框 ==========
     private AlertDialog pauseDialog;
     private OnBackPressedCallback onBackPressedCallback;
 
-    // ========== 教程UI组件 ==========
-    private LinearLayout tutorialOverlay;
-    private TextView tutorialTitle;
-    private TextView tutorialMessage;
-    private TextView tutorialHint;
-    private GameEngine.TutorialState currentTutorialState = null;
-    private String currentTutorialMessage = "";
+    // =====================================================================
+    // Activity生命周期方法
+    // =====================================================================
 
-    /**
-     * Activity创建时的回调方法
-     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -92,6 +90,39 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             }
         }, 1000);
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 如果不是因为显示暂停菜单而暂停，则暂停游戏
+        if (!isGamePaused && gameEngine != null) {
+            gameEngine.pauseGame();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // 清理资源
+        if (pauseDialog != null && pauseDialog.isShowing()) {
+            pauseDialog.dismiss();
+        }
+        if (gameEngine != null) {
+            gameEngine.stopGame();
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            hideSystemUI();
+        }
+    }
+
+    // =====================================================================
+    // 游戏初始化相关方法
+    // =====================================================================
 
     /**
      * 完整的游戏初始化
@@ -244,90 +275,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     }
 
     /**
-     * 更新资源显示
-     */
-    private void updateResourceDisplay() {
-        if (tvManpower != null && tvSupply != null && gameEngine != null) {
-            int manpower = gameEngine.getResourceManager().getManpower();
-            int supply = gameEngine.getResourceManager().getSupply();
-            tvManpower.setText(String.valueOf(manpower));
-            tvSupply.setText(String.valueOf(supply));
-        }
-    }
-
-    /**
-     * 初始化暂停菜单
-     */
-    private void initPauseMenu() {
-        // 创建暂停菜单对话框
-        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.PauseMenuDialogTheme);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_pause_menu, null);
-        builder.setView(dialogView);
-
-        // 设置对话框不可取消（必须通过按钮关闭）
-        builder.setCancelable(false);
-
-        pauseDialog = builder.create();
-
-        // 设置对话框背景透明
-        if (pauseDialog.getWindow() != null) {
-            pauseDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-        }
-
-        // 绑定按钮事件
-        setupPauseMenuButtons(dialogView);
-    }
-
-    /**
-     * 设置暂停菜单按钮事件
-     */
-    private void setupPauseMenuButtons(View dialogView) {
-        // 回到游戏按钮
-        dialogView.findViewById(R.id.btnResume).setOnClickListener(v -> {
-            System.out.println("GameActivity监听器: 已点击回到游戏按钮");
-            resumeGameFromPause();
-        });
-
-        // 重新开始按钮
-        dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
-            System.out.println("GameActivity监听器: 已点击重新开始按钮");
-            pauseDialog.dismiss();
-            restartGame();
-        });
-
-        // 返回主菜单按钮
-        dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
-            returnToMainMenu();
-        });
-    }
-
-    /**
-     * 初始化教程UI
-     */
-    private void initTutorialUI() {
-        View includedLayout = findViewById(R.id.tutorialOverlay);
-        if(includedLayout != null) {
-            tutorialOverlay = findViewById(R.id.tutorialOverlay);
-            tutorialTitle = findViewById(R.id.tutorialTitle);
-            tutorialMessage = findViewById(R.id.tutorialMessage);
-            tutorialHint = findViewById(R.id.tutorialHint);
-            System.out.println("GameActivity：教学布局id已传递");
-        }
-        System.out.println("GameActivity：教学初始化成功");
-
-        // 设置点击监听器，用于教程推进
-        if (tutorialOverlay != null) {
-            System.out.println("GameActivity：教学点击监听器已设置");
-            tutorialOverlay.setOnClickListener(v -> {
-                if (gameEngine != null && gameEngine.isTutorialLevel()) {
-                    gameEngine.advanceTutorial();
-                    System.out.println("GameActivity：调用gameEngine.advanceTutorial方法");
-                }
-            });
-        }
-    }
-
-    /**
      * 设置游戏引擎并建立关联
      */
     private void setupGameEngine() {
@@ -345,6 +292,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         System.out.println("GameActivity: 已创建新的GameEngine实例");
         Toast.makeText(this, "当前关卡: " + currentLevelName, Toast.LENGTH_SHORT).show();
     }
+
+    // =====================================================================
+    // 游戏控制方法
+    // =====================================================================
 
     /**
      * 开始游戏
@@ -400,6 +351,32 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     }
 
     /**
+     * 暂停游戏
+     */
+    private void pauseGame() {
+        if (gameEngine != null) {
+            gameEngine.pauseGame();
+        }
+        // 如果建造模式开启，先关闭建造模式
+        if (isBuildMode) {
+            setBuildMode(false);
+        }
+    }
+
+    /**
+     * 恢复游戏
+     */
+    private void resumeGame() {
+        if (gameEngine != null && !gameEngine.isRunning()) {
+            gameEngine.resumeGame();
+        }
+    }
+
+    // =====================================================================
+    // 建造模式相关方法
+    // =====================================================================
+
+    /**
      * 设置建造模式状态
      */
     private void setBuildMode(boolean buildMode) {
@@ -448,6 +425,56 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
+    // =====================================================================
+    // 暂停菜单相关方法
+    // =====================================================================
+
+    /**
+     * 初始化暂停菜单
+     */
+    private void initPauseMenu() {
+        // 创建暂停菜单对话框
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.PauseMenuDialogTheme);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_pause_menu, null);
+        builder.setView(dialogView);
+
+        // 设置对话框不可取消（必须通过按钮关闭）
+        builder.setCancelable(false);
+
+        pauseDialog = builder.create();
+
+        // 设置对话框背景透明
+        if (pauseDialog.getWindow() != null) {
+            pauseDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        // 绑定按钮事件
+        setupPauseMenuButtons(dialogView);
+    }
+
+    /**
+     * 设置暂停菜单按钮事件
+     */
+    private void setupPauseMenuButtons(View dialogView) {
+        // 回到游戏按钮
+        dialogView.findViewById(R.id.btnResume).setOnClickListener(v -> {
+            System.out.println("GameActivity监听器: 已点击回到游戏按钮");
+            resumeGameFromPause();
+        });
+
+        // 重新开始按钮
+        dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
+            System.out.println("GameActivity监听器: 已点击重新开始按钮");
+            pauseDialog.dismiss();
+            restartGame();
+        });
+
+        // 返回主菜单按钮
+        dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
+            returnToMainMenu();
+        });
+    }
+
     /**
      * 显示暂停菜单
      */
@@ -475,28 +502,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     }
 
     /**
-     * 暂停游戏
-     */
-    private void pauseGame() {
-        if (gameEngine != null) {
-            gameEngine.pauseGame();
-        }
-        // 如果建造模式开启，先关闭建造模式
-        if (isBuildMode) {
-            setBuildMode(false);
-        }
-    }
-
-    /**
-     * 恢复游戏
-     */
-    private void resumeGame() {
-        if (gameEngine != null && !gameEngine.isRunning()) {
-            gameEngine.resumeGame();
-        }
-    }
-
-    /**
      * 返回主菜单
      */
     private void returnToMainMenu() {
@@ -516,59 +521,34 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         System.out.println("GameActivity: 返回主菜单");
     }
 
-    /**
-     * 显示游戏失败菜单
-     */
-    private void showGameOverMenu() {
-        runOnUiThread(() -> {
-            // 创建游戏失败对话框
-            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.PauseMenuDialogTheme);
-            View dialogView = getLayoutInflater().inflate(R.layout.dialog_pause_menu, null);
-            builder.setView(dialogView);
-            builder.setCancelable(false);
-
-            AlertDialog gameOverDialog = builder.create();
-
-            // 设置对话框背景透明
-            if (gameOverDialog.getWindow() != null) {
-                gameOverDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
-            }
-
-            // 修改对话框标题和按钮
-            TextView title = dialogView.findViewById(R.id.dialogTitle);
-            if (title != null) {
-                title.setText("游戏失败");
-            }
-
-            // 隐藏"回到游戏"按钮，因为游戏已经失败
-            View btnResume = dialogView.findViewById(R.id.btnResume);
-            if (btnResume != null) {
-                btnResume.setVisibility(View.GONE);
-            }
-
-            // 设置按钮事件
-            setupGameOverMenuButtons(dialogView, gameOverDialog);
-
-            // 显示对话框
-            gameOverDialog.show();
-        });
-    }
+    // =====================================================================
+    // 教程系统相关方法
+    // =====================================================================
 
     /**
-     * 设置游戏失败菜单按钮事件
+     * 初始化教程UI
      */
-    private void setupGameOverMenuButtons(View dialogView, AlertDialog dialog) {
-        // 重新开始按钮
-        dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
-            dialog.dismiss();
-            restartGame();
-        });
+    private void initTutorialUI() {
+        View includedLayout = findViewById(R.id.tutorialOverlay);
+        if(includedLayout != null) {
+            tutorialOverlay = findViewById(R.id.tutorialOverlay);
+            tutorialTitle = findViewById(R.id.tutorialTitle);
+            tutorialMessage = findViewById(R.id.tutorialMessage);
+            tutorialHint = findViewById(R.id.tutorialHint);
+            System.out.println("GameActivity：教学布局id已传递");
+        }
+        System.out.println("GameActivity：教学初始化成功");
 
-        // 返回主菜单按钮
-        dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
-            dialog.dismiss();
-            returnToMainMenu();
-        });
+        // 设置点击监听器，用于教程推进
+        if (tutorialOverlay != null) {
+            System.out.println("GameActivity：教学点击监听器已设置");
+            tutorialOverlay.setOnClickListener(v -> {
+                if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    gameEngine.advanceTutorial();
+                    System.out.println("GameActivity：调用gameEngine.advanceTutorial方法");
+                }
+            });
+        }
     }
 
     /**
@@ -588,6 +568,22 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             }
         });
     }
+
+    /**
+     * 隐藏教程消息
+     */
+    private void hideTutorialMessage() {
+        runOnUiThread(() -> {
+            isShowingTutorial = false;
+            if (tutorialOverlay != null) {
+                tutorialOverlay.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    // =====================================================================
+    // 消息显示系统
+    // =====================================================================
 
     /**
      * 显示游戏消息（区分教程消息和普通消息）
@@ -648,17 +644,84 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         });
     }
 
+    // =====================================================================
+    // UI更新和资源管理
+    // =====================================================================
+
     /**
-     * 隐藏教程消息
+     * 更新资源显示
      */
-    private void hideTutorialMessage() {
+    private void updateResourceDisplay() {
+        if (tvManpower != null && tvSupply != null && gameEngine != null) {
+            int manpower = gameEngine.getResourceManager().getManpower();
+            int supply = gameEngine.getResourceManager().getSupply();
+            tvManpower.setText(String.valueOf(manpower));
+            tvSupply.setText(String.valueOf(supply));
+        }
+    }
+
+    // =====================================================================
+    // 游戏结束处理
+    // =====================================================================
+
+    /**
+     * 显示游戏失败菜单
+     */
+    private void showGameOverMenu() {
         runOnUiThread(() -> {
-            isShowingTutorial = false;
-            if (tutorialOverlay != null) {
-                tutorialOverlay.setVisibility(View.GONE);
+            // 创建游戏失败对话框
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.PauseMenuDialogTheme);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_pause_menu, null);
+            builder.setView(dialogView);
+            builder.setCancelable(false);
+
+            AlertDialog gameOverDialog = builder.create();
+
+            // 设置对话框背景透明
+            if (gameOverDialog.getWindow() != null) {
+                gameOverDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
             }
+
+            // 修改对话框标题和按钮
+            TextView title = dialogView.findViewById(R.id.dialogTitle);
+            if (title != null) {
+                title.setText("游戏失败");
+            }
+
+            // 隐藏"回到游戏"按钮，因为游戏已经失败
+            View btnResume = dialogView.findViewById(R.id.btnResume);
+            if (btnResume != null) {
+                btnResume.setVisibility(View.GONE);
+            }
+
+            // 设置按钮事件
+            setupGameOverMenuButtons(dialogView, gameOverDialog);
+
+            // 显示对话框
+            gameOverDialog.show();
         });
     }
+
+    /**
+     * 设置游戏失败菜单按钮事件
+     */
+    private void setupGameOverMenuButtons(View dialogView, AlertDialog dialog) {
+        // 重新开始按钮
+        dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
+            dialog.dismiss();
+            restartGame();
+        });
+
+        // 返回主菜单按钮
+        dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
+            dialog.dismiss();
+            returnToMainMenu();
+        });
+    }
+
+    // =====================================================================
+    // 系统UI控制
+    // =====================================================================
 
     /**
      * 隐藏系统UI - 实现全屏沉浸式体验
@@ -672,44 +735,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_FULLSCREEN);
-    }
-
-    /**
-     * 窗口焦点变化回调
-     */
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) {
-            hideSystemUI();
-        }
-    }
-
-    /**
-     * Activity暂停时的回调
-     */
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // 如果不是因为显示暂停菜单而暂停，则暂停游戏
-        if (!isGamePaused && gameEngine != null) {
-            gameEngine.pauseGame();
-        }
-    }
-
-    /**
-     * Activity销毁时的回调
-     */
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        // 清理资源
-        if (pauseDialog != null && pauseDialog.isShowing()) {
-            pauseDialog.dismiss();
-        }
-        if (gameEngine != null) {
-            gameEngine.stopGame();
-        }
     }
 
     /**
@@ -733,7 +758,9 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
     }
 
-    // ========== GameEngine.GameUpdateListener 接口实现 ==========
+    // =====================================================================
+    // GameEngine.GameUpdateListener 接口实现
+    // =====================================================================
 
     /**
      * 游戏状态更新回调

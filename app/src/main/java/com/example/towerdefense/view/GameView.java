@@ -24,32 +24,40 @@ import com.example.towerdefense.components.Path;
 import java.util.List;
 
 public class GameView extends View {
+    // ========== 核心游戏组件 ==========
     private GameEngine gameEngine;
-    private Tower.Type selectedTowerType = Tower.Type.ARCHER;
-    private Paint paint;
-    // 网格系统相关属性
+
+    // ========== 网格系统相关属性 ==========
     private boolean showGrid = true; // 是否显示网格
     private float gridSizePercentage = 0.08f; // 网格大小为屏幕宽度的8%
     private int gridSize; // 实际网格大小（像素），根据屏幕尺寸计算
-    private Paint gridPaint;
     private boolean isBuildMode = true; // 是否处于建造模式
 
-    // 新增：路径检测和高亮相关字段
-    private GridPosition highlightedGrid = null;
-    private Paint highlightPaint;
-    private boolean showHighlight = false;
-    private Handler handler; // 添加 Handler 实例
-
-    // 新增：移除模式相关字段
+    // ========== 塔选择和移除模式 ==========
+    private Tower.Type selectedTowerType = Tower.Type.ARCHER;
     private boolean isRemoveMode = false;
+
+    // ========== 绘制工具 ==========
+    private Paint paint;
+    private Paint gridPaint;
+    private Paint highlightPaint;
     private Paint removeModePaint;
 
-    // 新增：消息监听器接口
+    // ========== 路径检测和高亮相关字段 ==========
+    private GridPosition highlightedGrid = null;
+    private boolean showHighlight = false;
+    private Handler handler;
+
+    // ========== 消息监听器 ==========
     public interface GameViewListener {
         void showGameMessage(String title, String message, String hint, boolean autoHide);
     }
-
     private GameViewListener gameViewListener;
+
+    // =====================================================================
+    // 构造函数和初始化
+    // =====================================================================
+
     public GameView(Context context) {
         super(context);
         init();
@@ -69,19 +77,26 @@ public class GameView extends View {
         paint = new Paint();
         paint.setAntiAlias(true);
         setBackgroundColor(Color.DKGRAY);
+
         // 初始化网格画笔
         gridPaint = new Paint();
         gridPaint.setColor(Color.argb(80, 255, 255, 255)); // 半透明白色
         gridPaint.setStrokeWidth(1f);
+
         // 初始化高亮画笔
         highlightPaint = new Paint();
         highlightPaint.setColor(Color.argb(150, 255, 0, 0)); // 半透明红色
         highlightPaint.setStyle(Paint.Style.FILL);
+
         // 初始化移除模式画笔
         removeModePaint = new Paint();
         removeModePaint.setColor(Color.argb(150, 255, 165, 0)); // 半透明橙色
         removeModePaint.setStyle(Paint.Style.FILL);
     }
+
+    // =====================================================================
+    // 视图生命周期和尺寸处理
+    // =====================================================================
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
@@ -98,54 +113,6 @@ public class GameView extends View {
 
         System.out.println("GameView: 屏幕尺寸变化 " + w + "x" + h);
         System.out.println("GameView: 网格大小 " + gridSize + "px");
-    }
-
-    /**
-     * 根据屏幕尺寸计算网格大小
-     */
-    private void calculateGridSize() {
-        int screenWidth = getWidth();
-        int screenHeight = getHeight();
-
-        if (screenWidth > 0 && screenHeight > 0) {
-            // 使用屏幕宽度的百分比作为网格大小
-            gridSize = (int) (screenWidth * gridSizePercentage);
-
-            // 确保网格大小在合理范围内
-            gridSize = Math.max(30, Math.min(gridSize, 100));
-        } else {
-            // 默认网格大小
-            gridSize = 60;
-        }
-    }
-
-    public void setGameEngine(GameEngine gameEngine) {
-        this.gameEngine = gameEngine;
-    }
-
-    public void setSelectedTowerType(Tower.Type towerType) {
-        this.selectedTowerType = towerType;
-        this.isRemoveMode = false; // 选择塔类型时退出移除模式
-        invalidate();
-    }
-
-    /**
-     * 设置移除模式
-     */
-    public void setRemoveMode(boolean removeMode) {
-        this.isRemoveMode = removeMode;
-        if (removeMode) {
-            this.selectedTowerType = null; // 移除模式下不选择任何塔类型
-            System.out.println("GameView: 进入移除模式");
-        }
-        invalidate();
-    }
-
-    /**
-     * 获取当前是否处于移除模式
-     */
-    public boolean isRemoveMode() {
-        return isRemoveMode;
     }
 
     @Override
@@ -186,7 +153,32 @@ public class GameView extends View {
         canvas.drawText("网格: " + gridSize + "px", 10, getHeight() - 50, paint);
     }
 
-    // 修改 drawGrid 方法，添加移除模式高亮
+    // =====================================================================
+    // 网格系统相关方法
+    // =====================================================================
+
+    /**
+     * 根据屏幕尺寸计算网格大小
+     */
+    private void calculateGridSize() {
+        int screenWidth = getWidth();
+        int screenHeight = getHeight();
+
+        if (screenWidth > 0 && screenHeight > 0) {
+            // 使用屏幕宽度的百分比作为网格大小
+            gridSize = (int) (screenWidth * gridSizePercentage);
+
+            // 确保网格大小在合理范围内
+            gridSize = Math.max(30, Math.min(gridSize, 100));
+        } else {
+            // 默认网格大小
+            gridSize = 60;
+        }
+    }
+
+    /**
+     * 绘制网格
+     */
     private void drawGrid(Canvas canvas) {
         int width = getWidth();
         int height = getHeight();
@@ -242,6 +234,10 @@ public class GameView extends View {
         float screenY = gridY * gridSize + gridSize / 2f;
         return new ScreenPosition(screenX, screenY);
     }
+
+    // =====================================================================
+    // 触摸事件处理
+    // =====================================================================
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -318,6 +314,92 @@ public class GameView extends View {
     }
 
     /**
+     * 处理可访问性点击事件
+     */
+    @Override
+    public boolean performClick() {
+        super.performClick();
+        return true;
+    }
+
+    // =====================================================================
+    // 路径检测和网格高亮
+    // =====================================================================
+
+    /**
+     * 检测指定网格位置是否有路径
+     */
+    private boolean isGridOnPath(GridPosition gridPos) {
+        if (gameEngine == null || gameEngine.getWorld() == null) {
+            return false;
+        }
+
+        World world = gameEngine.getWorld();
+        List<Entity> pathEntities = world.getEntitiesWithComponent(Path.class);
+
+        // 将网格坐标转换为屏幕坐标（网格中心）
+        ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
+
+        for (Entity pathEntity : pathEntities) {
+            Path path = pathEntity.getComponent(Path.class);
+            if (path != null && path.isVisible()) {
+                float[][] screenPoints = path.convertToScreenCoordinates(getWidth(), getHeight());
+
+                // 检查点是否在路径附近（考虑路径宽度）
+                float pathWidth = path.getPathWidth();
+                for (int i = 0; i < screenPoints.length - 1; i++) {
+                    if (isPointNearLine(screenPos.x, screenPos.y,
+                            screenPoints[i][0], screenPoints[i][1],
+                            screenPoints[i + 1][0], screenPoints[i + 1][1],
+                            pathWidth + 20)) { // 增加一些容差
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查点是否靠近线段
+     */
+    private boolean isPointNearLine(float px, float py, float x1, float y1, float x2, float y2, float threshold) {
+        // 计算点到线段的最短距离
+        float A = px - x1;
+        float B = py - y1;
+        float C = x2 - x1;
+        float D = y2 - y1;
+
+        float dot = A * C + B * D;
+        float len_sq = C * C + D * D;
+        float param = -1;
+
+        if (len_sq != 0) {
+            param = dot / len_sq;
+        }
+
+        float xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        float dx = px - xx;
+        float dy = py - yy;
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+
+        return distance <= threshold;
+    }
+
+    /**
      * 高亮显示指定的网格
      */
     private void highlightGrid(GridPosition gridPos) {
@@ -332,64 +414,9 @@ public class GameView extends View {
         }, 1000);
     }
 
-    /**
-     * 显示需要建造模式的提示信息
-     */
-    private void showBuildModeRequiredMessage() {
-        System.out.println("GameView: 请先开启建造模式来放置防御塔");
-    }
-
-    /**
-     * 处理可访问性点击事件
-     */
-    @Override
-    public boolean performClick() {
-        super.performClick();
-        return true;
-    }
-
-    // 网格位置辅助类
-    private static class GridPosition {
-        final int x;
-        final int y;
-
-        GridPosition(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-    }
-
-    // 屏幕位置辅助类
-    private static class ScreenPosition {
-        final float x;
-        final float y;
-
-        ScreenPosition(float x, float y) {
-            this.x = x;
-            this.y = y;
-        }
-    }
-
-    // 网格系统公共方法
-    public void setShowGrid(boolean showGrid) {
-        this.showGrid = showGrid;
-        invalidate();
-    }
-
-    public void setGridSizePercentage(float percentage) {
-        this.gridSizePercentage = Math.max(0.05f, Math.min(percentage, 0.2f)); // 限制在5%-20%之间
-        calculateGridSize();
-        invalidate();
-    }
-
-    public void setBuildMode(boolean buildMode) {
-        this.isBuildMode = buildMode;
-        // 退出建造模式时自动退出移除模式
-        if (!buildMode) {
-            this.isRemoveMode = false;
-        }
-        invalidate();
-    }
+    // =====================================================================
+    // 绘制方法
+    // =====================================================================
 
     /**
      * 绘制游戏地图和路径
@@ -467,7 +494,6 @@ public class GameView extends View {
         }
     }
 
-    // drawEnemy, drawTower, drawProjectile 方法保持不变
     private void drawEnemy(Canvas canvas, Entity enemy, Transform transform) {
         Enemy enemyComp = enemy.getComponent(Enemy.class);
         Health health = enemy.getComponent(Health.class);
@@ -589,78 +615,57 @@ public class GameView extends View {
         }
     }
 
-    // 添加路径检测方法
-    /**
-     * 检测指定网格位置是否有路径
-     */
-    private boolean isGridOnPath(GridPosition gridPos) {
-        if (gameEngine == null || gameEngine.getWorld() == null) {
-            return false;
-        }
+    // =====================================================================
+    // 公共方法 - 设置器和获取器
+    // =====================================================================
 
-        World world = gameEngine.getWorld();
-        List<Entity> pathEntities = world.getEntitiesWithComponent(Path.class);
+    public void setGameEngine(GameEngine gameEngine) {
+        this.gameEngine = gameEngine;
+    }
 
-        // 将网格坐标转换为屏幕坐标（网格中心）
-        ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
-
-        for (Entity pathEntity : pathEntities) {
-            Path path = pathEntity.getComponent(Path.class);
-            if (path != null && path.isVisible()) {
-                float[][] screenPoints = path.convertToScreenCoordinates(getWidth(), getHeight());
-
-                // 检查点是否在路径附近（考虑路径宽度）
-                float pathWidth = path.getPathWidth();
-                for (int i = 0; i < screenPoints.length - 1; i++) {
-                    if (isPointNearLine(screenPos.x, screenPos.y,
-                            screenPoints[i][0], screenPoints[i][1],
-                            screenPoints[i + 1][0], screenPoints[i + 1][1],
-                            pathWidth + 20)) { // 增加一些容差
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+    public void setSelectedTowerType(Tower.Type towerType) {
+        this.selectedTowerType = towerType;
+        this.isRemoveMode = false; // 选择塔类型时退出移除模式
+        invalidate();
     }
 
     /**
-     * 检查点是否靠近线段
+     * 设置移除模式
      */
-    private boolean isPointNearLine(float px, float py, float x1, float y1, float x2, float y2, float threshold) {
-        // 计算点到线段的最短距离
-        float A = px - x1;
-        float B = py - y1;
-        float C = x2 - x1;
-        float D = y2 - y1;
-
-        float dot = A * C + B * D;
-        float len_sq = C * C + D * D;
-        float param = -1;
-
-        if (len_sq != 0) {
-            param = dot / len_sq;
+    public void setRemoveMode(boolean removeMode) {
+        this.isRemoveMode = removeMode;
+        if (removeMode) {
+            this.selectedTowerType = null; // 移除模式下不选择任何塔类型
+            System.out.println("GameView: 进入移除模式");
         }
+        invalidate();
+    }
 
-        float xx, yy;
+    /**
+     * 获取当前是否处于移除模式
+     */
+    public boolean isRemoveMode() {
+        return isRemoveMode;
+    }
 
-        if (param < 0) {
-            xx = x1;
-            yy = y1;
-        } else if (param > 1) {
-            xx = x2;
-            yy = y2;
-        } else {
-            xx = x1 + param * C;
-            yy = y1 + param * D;
+    public void setShowGrid(boolean showGrid) {
+        this.showGrid = showGrid;
+        invalidate();
+    }
+
+    public void setGridSizePercentage(float percentage) {
+        this.gridSizePercentage = Math.max(0.05f, Math.min(percentage, 0.2f)); // 限制在5%-20%之间
+        calculateGridSize();
+        invalidate();
+    }
+
+    public void setBuildMode(boolean buildMode) {
+        this.isBuildMode = buildMode;
+        // 退出建造模式时自动退出移除模式
+        if (!buildMode) {
+            this.isRemoveMode = false;
         }
-
-        float dx = px - xx;
-        float dy = py - yy;
-        float distance = (float) Math.sqrt(dx * dx + dy * dy);
-
-        return distance <= threshold;
+        invalidate();
     }
 
     /**
@@ -668,5 +673,38 @@ public class GameView extends View {
      */
     public void setGameViewListener(GameViewListener listener) {
         this.gameViewListener = listener;
+    }
+
+    // =====================================================================
+    // 辅助方法和内部类
+    // =====================================================================
+
+    /**
+     * 显示需要建造模式的提示信息
+     */
+    private void showBuildModeRequiredMessage() {
+        System.out.println("GameView: 请先开启建造模式来放置防御塔");
+    }
+
+    // 网格位置辅助类
+    private static class GridPosition {
+        final int x;
+        final int y;
+
+        GridPosition(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    // 屏幕位置辅助类
+    private static class ScreenPosition {
+        final float x;
+        final float y;
+
+        ScreenPosition(float x, float y) {
+            this.x = x;
+            this.y = y;
+        }
     }
 }

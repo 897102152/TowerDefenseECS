@@ -26,6 +26,7 @@ import java.util.List;
  * 负责管理游戏循环、实体创建、系统更新和游戏状态
  */
 public class GameEngine {
+    // ========== 核心游戏组件 ==========
     private final World world;
     private final Handler gameHandler;
     private Runnable gameLoop;
@@ -33,30 +34,26 @@ public class GameEngine {
     private GameUpdateListener updateListener;
     private final Random random = new Random();
 
-    // 系统引用
+    // ========== 系统引用 ==========
     private SpawnSystem spawnSystem;
     private MovementSystem movementSystem;
     private LevelSystem levelSystem;
 
-    // 屏幕尺寸字段
+    // ========== 游戏状态字段 ==========
     private int screenWidth;
     private int screenHeight;
     private int currentLevelId;
+    private int enemiesReachedEnd = 0;
+    private int maxEnemiesAllowed = 20;
+    private boolean isGameOver = false;
 
-    // 新增：资源管理器
+    // ========== 资源管理 ==========
     private final ResourceManager resourceManager;
 
-    // 新增：保存Context引用用于Toast
+    // ========== 上下文引用 ==========
     private final Context context;
 
-    public interface GameUpdateListener {
-        void onGameStateUpdated(World world);
-        void onResourcesUpdated(int manpower, int supply);
-        void onEnemyDefeated(Enemy enemy, int reward);
-        void onTutorialStepStarted(TutorialState state, String message);
-        void onGameOver(); // 新增：游戏失败回调
-    }
-
+    // ========== 教程系统 ==========
     public enum TutorialState {
         WELCOME,
         RESOURCE_EXPLANATION,
@@ -67,23 +64,31 @@ public class GameEngine {
         COMPLETED
     }
 
-    // 添加教程相关字段
     private TutorialState tutorialState = TutorialState.WELCOME;
     private Handler tutorialHandler;
     private boolean isTutorialLevel;
     private int towersBuilt = 0;
 
-    /**
-     * 教程中断恢复机制
-     */
+    // 教程中断恢复机制
     private boolean tutorialInterrupted = false;
     private TutorialState interruptedState = null;
     private String interruptedMessage = "";
 
-    // 游戏状态字段
-    private int enemiesReachedEnd = 0;
-    private int maxEnemiesAllowed = 20;
-    private boolean isGameOver = false;
+    // =====================================================================
+    // 接口定义
+    // =====================================================================
+
+    public interface GameUpdateListener {
+        void onGameStateUpdated(World world);
+        void onResourcesUpdated(int manpower, int supply);
+        void onEnemyDefeated(Enemy enemy, int reward);
+        void onTutorialStepStarted(TutorialState state, String message);
+        void onGameOver(); // 新增：游戏失败回调
+    }
+
+    // =====================================================================
+    // 构造函数和初始化
+    // =====================================================================
 
     /**
      * 构造函数 - 初始化游戏引擎
@@ -214,6 +219,19 @@ public class GameEngine {
     }
 
     /**
+     * 设置关卡系统
+     */
+    private void setupLevelSystem(int levelId) {
+        // 创建关卡系统
+        levelSystem = new LevelSystem(levelId);
+        // 初始化关卡（创建路径、初始塔等）
+        levelSystem.initializeLevel(world);
+        // 确保路径实体已经创建
+        System.out.println("GameEngine: 关卡路径初始化完成，路径数量: " +
+                world.getEntitiesWithComponent(Path.class).size());
+    }
+
+    /**
      * 初始化系统
      */
     private void initializeSystems() {
@@ -253,103 +271,73 @@ public class GameEngine {
         System.out.println("GameEngine: 系统初始化完成");
     }
 
-    /**
-     * 初始化教程
-     */
-    private void initializeTutorial() {
-        System.out.println("GameEngine: 初始化教程");
+    // =====================================================================
+    // 游戏循环控制
+    // =====================================================================
 
-        tutorialHandler = new Handler(Looper.getMainLooper());
-        tutorialState = TutorialState.WELCOME;
-        towersBuilt = 0;
-        tutorialInterrupted = false;
+    public void startGame() {
+        if (isRunning) return;
 
-        // 延迟显示第一个教程提示
-        tutorialHandler.postDelayed(() -> {
-            System.out.println("GameEngine: 显示第一个教程提示");
-            if (updateListener != null) {
-                updateListener.onTutorialStepStarted(tutorialState, "点击屏幕继续");
-            }
-        }, 1000);
-    }
-
-    /**
-     * 设置关卡系统
-     */
-    private void setupLevelSystem(int levelId) {
-        // 创建关卡系统
-        levelSystem = new LevelSystem(levelId);
-        // 初始化关卡（创建路径、初始塔等）
-        levelSystem.initializeLevel(world);
-        // 确保路径实体已经创建
-        System.out.println("GameEngine: 关卡路径初始化完成，路径数量: " +
-                world.getEntitiesWithComponent(Path.class).size());
-    }
-
-    /**
-     * 设置屏幕尺寸 - 传递给所有需要的系统
-     */
-    public void setScreenSize(int width, int height) {
-        this.screenWidth = width;
-        this.screenHeight = height;
-
-        System.out.println("GameEngine: 屏幕尺寸设置为 " + width + "x" + height);
-
-        // 验证路径转换
-        validatePathCoordinates();
-
-        // 传递屏幕尺寸给各个系统
-        if (spawnSystem != null) {
-            System.out.println("GameEngine: 设置SpawnSystem的屏幕尺寸");
-            spawnSystem.setScreenSize(width, height);
-        } else {
-            System.out.println("GameEngine: spawnSystem为null！");
-        }
-        if (movementSystem != null) {
-            System.out.println("GameEngine: 设置MovementSystem的屏幕尺寸");
-            movementSystem.setScreenSize(width, height);
-        } else {
-            System.out.println("GameEngine: MovementSystem为null！");
-        }
-    }
-
-    /**
-     * 验证路径坐标转换
-     */
-    private void validatePathCoordinates() {
-        List<Entity> paths = world.getEntitiesWithComponent(Path.class);
-        System.out.println("GameEngine: 验证 " + paths.size() + " 条路径");
-
-        for (Entity pathEntity : paths) {
-            Path path = pathEntity.getComponent(Path.class);
-            float[][] screenPoints = path.convertToScreenCoordinates(screenWidth, screenHeight);
-            System.out.println("GameEngine: 路径 " + path.getTag() + " 起点: (" +
-                    screenPoints[0][0] + ", " + screenPoints[0][1] + ")");
-        }
-    }
-
-    /**
-     * 根据路径标签获取路径的起点位置
-     */
-    private float[] getPathStartPosition(Path.PathTag pathTag) {
-        // 从世界中找到对应的路径
-        for (Entity entity : world.getEntitiesWithComponent(Path.class)) {
-            Path path = entity.getComponent(Path.class);
-            if (path.getTag() == pathTag) {
-                // 使用路径组件的转换方法
-                float[][] screenPoints = path.convertToScreenCoordinates(screenWidth, screenHeight);
-                if (screenPoints.length > 0) {
-                    float startX = screenPoints[0][0];
-                    float startY = screenPoints[0][1];
-                    System.out.println("GameEngine: 路径 " + pathTag + " 起点: (" + startX + ", " + startY + ")");
-                    return new float[]{startX, startY};
+        isRunning = true;
+        gameLoop = new Runnable() {
+            @Override
+            public void run() {
+                if (isRunning) {
+                    updateGame();
+                    gameHandler.postDelayed(this, 16);
                 }
             }
-        }
-
-        System.err.println("GameEngine: 警告！找不到路径 " + pathTag + "，使用默认起点");
-        return new float[]{100, 100};
+        };
+        gameHandler.post(gameLoop);
+        updateGame();
     }
+
+    private void updateGame() {
+        try {
+            world.update(0.016f);
+            if (updateListener != null) {
+                updateListener.onGameStateUpdated(world);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 暂停游戏
+     */
+    public void pauseGame() {
+        isRunning = false;
+        if (gameLoop != null) {
+            gameHandler.removeCallbacks(gameLoop);
+        }
+        System.out.println("GameEngine: 游戏已暂停");
+    }
+
+    /**
+     * 恢复游戏
+     */
+    public void resumeGame() {
+        if (!isRunning) {
+            startGame();
+        }
+        System.out.println("GameEngine: 游戏已恢复");
+    }
+
+    /**
+     * 停止游戏
+     */
+    public void stopGame() {
+        isRunning = false;
+        if (gameLoop != null) {
+            gameHandler.removeCallbacks(gameLoop);
+        }
+        System.out.println("GameEngine: 游戏已停止");
+    }
+
+    // =====================================================================
+    // 防御塔管理
+    // =====================================================================
 
     /**
      * 放置防御塔
@@ -426,6 +414,7 @@ public class GameEngine {
 
         tower.addComponent(new Tower(type, damage, range, attackSpeed, manpowerCost, supplyCost));
     }
+
     /**
      * 移除防御塔并返还人力（不返还补给）
      */
@@ -469,6 +458,7 @@ public class GameEngine {
                 Toast.makeText(context, "该位置没有防御塔", Toast.LENGTH_SHORT).show()
         );
     }
+
     /**
      * 根据位置查找防御塔
      */
@@ -518,6 +508,10 @@ public class GameEngine {
         }
     }
 
+    // =====================================================================
+    // 敌人事件处理
+    // =====================================================================
+
     /**
      * 敌人被击败时调用（由AttackSystem调用）
      */
@@ -560,6 +554,30 @@ public class GameEngine {
         }
     }
 
+    // =====================================================================
+    // 教程系统
+    // =====================================================================
+
+    /**
+     * 初始化教程
+     */
+    private void initializeTutorial() {
+        System.out.println("GameEngine: 初始化教程");
+
+        tutorialHandler = new Handler(Looper.getMainLooper());
+        tutorialState = TutorialState.WELCOME;
+        towersBuilt = 0;
+        tutorialInterrupted = false;
+
+        // 延迟显示第一个教程提示
+        tutorialHandler.postDelayed(() -> {
+            System.out.println("GameEngine: 显示第一个教程提示");
+            if (updateListener != null) {
+                updateListener.onTutorialStepStarted(tutorialState, "点击屏幕继续");
+            }
+        }, 1000);
+    }
+
     /**
      * 推进教程到下一步
      */
@@ -596,15 +614,6 @@ public class GameEngine {
             case COMPLETED:
                 // 教程完成
                 break;
-        }
-    }
-
-    /**
-     * 显示教程消息
-     */
-    private void showTutorialMessage(String title, String message) {
-        if (updateListener != null) {
-            updateListener.onTutorialStepStarted(tutorialState, message);
         }
     }
 
@@ -689,6 +698,15 @@ public class GameEngine {
     }
 
     /**
+     * 显示教程消息
+     */
+    private void showTutorialMessage(String title, String message) {
+        if (updateListener != null) {
+            updateListener.onTutorialStepStarted(tutorialState, message);
+        }
+    }
+
+    /**
      * 获取当前教程步骤的消息
      */
     private String getCurrentTutorialMessage() {
@@ -723,104 +741,79 @@ public class GameEngine {
             default: return "未知类型";
         }
     }
-    public void startGame() {
-        if (isRunning) return;
 
-        isRunning = true;
-        gameLoop = new Runnable() {
-            @Override
-            public void run() {
-                if (isRunning) {
-                    updateGame();
-                    gameHandler.postDelayed(this, 16);
+    // =====================================================================
+    // 屏幕尺寸和路径管理
+    // =====================================================================
+
+    /**
+     * 设置屏幕尺寸 - 传递给所有需要的系统
+     */
+    public void setScreenSize(int width, int height) {
+        this.screenWidth = width;
+        this.screenHeight = height;
+
+        System.out.println("GameEngine: 屏幕尺寸设置为 " + width + "x" + height);
+
+        // 验证路径转换
+        validatePathCoordinates();
+
+        // 传递屏幕尺寸给各个系统
+        if (spawnSystem != null) {
+            System.out.println("GameEngine: 设置SpawnSystem的屏幕尺寸");
+            spawnSystem.setScreenSize(width, height);
+        } else {
+            System.out.println("GameEngine: spawnSystem为null！");
+        }
+        if (movementSystem != null) {
+            System.out.println("GameEngine: 设置MovementSystem的屏幕尺寸");
+            movementSystem.setScreenSize(width, height);
+        } else {
+            System.out.println("GameEngine: MovementSystem为null！");
+        }
+    }
+
+    /**
+     * 验证路径坐标转换
+     */
+    private void validatePathCoordinates() {
+        List<Entity> paths = world.getEntitiesWithComponent(Path.class);
+        System.out.println("GameEngine: 验证 " + paths.size() + " 条路径");
+
+        for (Entity pathEntity : paths) {
+            Path path = pathEntity.getComponent(Path.class);
+            float[][] screenPoints = path.convertToScreenCoordinates(screenWidth, screenHeight);
+            System.out.println("GameEngine: 路径 " + path.getTag() + " 起点: (" +
+                    screenPoints[0][0] + ", " + screenPoints[0][1] + ")");
+        }
+    }
+
+    /**
+     * 根据路径标签获取路径的起点位置
+     */
+    private float[] getPathStartPosition(Path.PathTag pathTag) {
+        // 从世界中找到对应的路径
+        for (Entity entity : world.getEntitiesWithComponent(Path.class)) {
+            Path path = entity.getComponent(Path.class);
+            if (path.getTag() == pathTag) {
+                // 使用路径组件的转换方法
+                float[][] screenPoints = path.convertToScreenCoordinates(screenWidth, screenHeight);
+                if (screenPoints.length > 0) {
+                    float startX = screenPoints[0][0];
+                    float startY = screenPoints[0][1];
+                    System.out.println("GameEngine: 路径 " + pathTag + " 起点: (" + startX + ", " + startY + ")");
+                    return new float[]{startX, startY};
                 }
             }
-        };
-        gameHandler.post(gameLoop);
-        updateGame();
-    }
-
-    private void updateGame() {
-        try {
-            world.update(0.016f);
-            if (updateListener != null) {
-                updateListener.onGameStateUpdated(world);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
+
+        System.err.println("GameEngine: 警告！找不到路径 " + pathTag + "，使用默认起点");
+        return new float[]{100, 100};
     }
 
-    public World getWorld() {
-        return world;
-    }
-
-    public void setUpdateListener(GameUpdateListener listener) {
-        this.updateListener = listener;
-    }
-
-    public boolean isRunning() {
-        return isRunning;
-    }
-
-    public Entity getPathEntity(Path.PathTag pathTag) {
-        return null;
-    }
-
-
-    /**
-     * 获取关卡系统
-     */
-    public LevelSystem getLevelSystem() {
-        return levelSystem;
-    }
-
-    /**
-     * 切换关卡
-     */
-    public void switchLevel(int newLevelId) {
-        // 暂停游戏
-        pauseGame();
-
-        // 切换关卡
-        levelSystem.switchLevel(newLevelId);
-        levelSystem.initializeLevel(world);
-
-        // 重新开始游戏
-        startGame();
-    }
-
-    /**
-     * 暂停游戏
-     */
-    public void pauseGame() {
-        isRunning = false;
-        if (gameLoop != null) {
-            gameHandler.removeCallbacks(gameLoop);
-        }
-        System.out.println("GameEngine: 游戏已暂停");
-    }
-
-    /**
-     * 恢复游戏
-     */
-    public void resumeGame() {
-        if (!isRunning) {
-            startGame();
-        }
-        System.out.println("GameEngine: 游戏已恢复");
-    }
-
-    /**
-     * 停止游戏
-     */
-    public void stopGame() {
-        isRunning = false;
-        if (gameLoop != null) {
-            gameHandler.removeCallbacks(gameLoop);
-        }
-        System.out.println("GameEngine: 游戏已停止");
-    }
+    // =====================================================================
+    // 系统状态检查和调试
+    // =====================================================================
 
     /**
      * 检查所有系统状态
@@ -851,7 +844,48 @@ public class GameEngine {
         System.out.println("=== 检查完成 ===");
     }
 
-    // Getter方法
+    // =====================================================================
+    // Getter和Setter方法
+    // =====================================================================
+
+    public World getWorld() {
+        return world;
+    }
+
+    public void setUpdateListener(GameUpdateListener listener) {
+        this.updateListener = listener;
+    }
+
+    public boolean isRunning() {
+        return isRunning;
+    }
+
+    public Entity getPathEntity(Path.PathTag pathTag) {
+        return null;
+    }
+
+    /**
+     * 获取关卡系统
+     */
+    public LevelSystem getLevelSystem() {
+        return levelSystem;
+    }
+
+    /**
+     * 切换关卡
+     */
+    public void switchLevel(int newLevelId) {
+        // 暂停游戏
+        pauseGame();
+
+        // 切换关卡
+        levelSystem.switchLevel(newLevelId);
+        levelSystem.initializeLevel(world);
+
+        // 重新开始游戏
+        startGame();
+    }
+
     public ResourceManager getResourceManager() {
         return resourceManager;
     }
