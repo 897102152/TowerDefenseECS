@@ -117,11 +117,11 @@
             android:id="@+id/btnArcherTower"
             android:layout_width="50dp"
             android:layout_height="50dp"
-            android:src="@drawable/ic_infantry"
+            android:src="@drawable/tower_infantry"
             android:background="@drawable/floating_button_bg"
             android:contentDescription="@string/infantry"
             android:scaleType="centerInside"
-            app:tint="@android:color/white" />
+            />
 
         <!-- 炮塔按钮 -->
         <ImageButton
@@ -129,11 +129,12 @@
             android:layout_width="50dp"
             android:layout_height="50dp"
             android:layout_marginStart="12dp"
-            android:src="@drawable/ic_grenadier"
+            android:src="@drawable/tower_anti_tank"
             android:background="@drawable/floating_button_bg"
             android:contentDescription="@string/Grenadier"
             android:scaleType="centerInside"
-            app:tint="@android:color/white" />
+
+            />
 
         <!-- 法师塔按钮 -->
         <ImageButton
@@ -141,11 +142,11 @@
             android:layout_width="50dp"
             android:layout_height="50dp"
             android:layout_marginStart="12dp"
-            android:src="@drawable/ic_artillery"
+            android:src="@drawable/tower_artillery"
             android:background="@drawable/floating_button_bg"
             android:contentDescription="@string/artillery"
             android:scaleType="centerInside"
-            app:tint="@android:color/white" />
+             />
         <!-- 移除按钮 -->
         <ImageButton
             android:id="@+id/btnBuildRemove"
