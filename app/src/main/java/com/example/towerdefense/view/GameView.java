@@ -22,7 +22,12 @@ import com.example.towerdefense.components.Projectile;
 import com.example.towerdefense.components.Path;
 
 import java.util.List;
-
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import com.example.towerdefense.R;
+import android.graphics.drawable.Drawable;
+import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat;
 public class GameView extends View {
     // ========== 核心游戏组件 ==========
     private GameEngine gameEngine;
@@ -53,6 +58,16 @@ public class GameView extends View {
         void showGameMessage(String title, String message, String hint, boolean autoHide);
     }
     private GameViewListener gameViewListener;
+    // ========== 敌人图标资源 ==========
+    private Bitmap goblinBitmap;
+    private Bitmap orcBitmap;
+    private Bitmap trollBitmap;
+    // ========== 敌人矢量图资源 ==========
+    private Drawable goblinDrawable;
+    private Drawable orcDrawable;
+    private Drawable trollDrawable;
+    // ========== 图标尺寸控制 ==========
+    private int enemyIconSize = 60; // 图标大小（像素）
 
     // =====================================================================
     // 构造函数和初始化
@@ -92,6 +107,8 @@ public class GameView extends View {
         removeModePaint = new Paint();
         removeModePaint.setColor(Color.argb(150, 255, 165, 0)); // 半透明橙色
         removeModePaint.setStyle(Paint.Style.FILL);
+        // 加载敌人图标
+        loadVectorDrawables();
     }
 
     // =====================================================================
@@ -102,6 +119,26 @@ public class GameView extends View {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         System.out.println("GameView: onSizeChanged - " + w + "x" + h);
+        // 根据屏幕尺寸调整敌人图标大小
+        enemyIconSize = Math.min(w, h) / 15; // 图标大小为屏幕较小边的1/15
+        // 根据屏幕尺寸调整敌人图标大小
+        enemyIconSize = Math.min(w, h) / 15;
+        enemyIconSize = Math.max(40, Math.min(enemyIconSize, 80));
+
+        // 重新设置Drawable边界
+        if (goblinDrawable != null) {
+            goblinDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        }
+        if (orcDrawable != null) {
+            orcDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        }
+        if (trollDrawable != null) {
+            trollDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        }
+
+        System.out.println("GameView: 敌人图标大小调整为 " + enemyIconSize + "px");
+
+
         if (gameEngine != null) {
             gameEngine.setScreenSize(w, h);
             System.out.println("GameView: 屏幕尺寸已传递给GameEngine");
@@ -494,40 +531,6 @@ public class GameView extends View {
         }
     }
 
-    private void drawEnemy(Canvas canvas, Entity enemy, Transform transform) {
-        Enemy enemyComp = enemy.getComponent(Enemy.class);
-        Health health = enemy.getComponent(Health.class);
-
-        if (enemyComp == null) return;
-
-        switch (enemyComp.type) {
-            case GOBLIN:
-                paint.setColor(Color.GREEN);
-                break;
-            case ORC:
-                paint.setColor(Color.RED);
-                break;
-            case TROLL:
-                paint.setColor(Color.BLUE);
-                break;
-        }
-
-        canvas.drawCircle(transform.x, transform.y, 20f, paint);
-
-        if (health != null) {
-            float healthRatio = (float) health.current / health.max;
-
-            paint.setColor(Color.DKGRAY);
-            float barWidth = 40f;
-            float barHeight = 5f;
-            float barX = transform.x - barWidth / 2;
-            float barY = transform.y - 30f;
-            canvas.drawRect(barX, barY, barX + barWidth, barY + barHeight, paint);
-
-            paint.setColor(Color.GREEN);
-            canvas.drawRect(barX, barY, barX + barWidth * healthRatio, barY + barHeight, paint);
-        }
-    }
 
     private void drawTower(Canvas canvas, Entity tower, Transform transform) {
         Tower towerComp = tower.getComponent(Tower.class);
@@ -705,6 +708,153 @@ public class GameView extends View {
         ScreenPosition(float x, float y) {
             this.x = x;
             this.y = y;
+        }
+    }
+    /**
+     * 加载敌人矢量图资源
+     */
+    private void loadVectorDrawables() {
+        System.out.println("GameView: 开始加载敌人矢量图");
+
+        try {
+            // 加载矢量图
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                goblinDrawable = getContext().getDrawable(R.drawable.enemy_reconnaissance);
+                orcDrawable = getContext().getDrawable(R.drawable.enemy_infantry);
+                trollDrawable = getContext().getDrawable(R.drawable.enemy_armour);
+            } else {
+                // 兼容旧版本
+                goblinDrawable = androidx.vectordrawable.graphics.drawable.VectorDrawableCompat.create(
+                        getResources(), R.drawable.enemy_reconnaissance, getContext().getTheme());
+                orcDrawable = androidx.vectordrawable.graphics.drawable.VectorDrawableCompat.create(
+                        getResources(), R.drawable.enemy_infantry, getContext().getTheme());
+                trollDrawable = androidx.vectordrawable.graphics.drawable.VectorDrawableCompat.create(
+                        getResources(), R.drawable.enemy_armour, getContext().getTheme());
+            }
+
+            // 设置Drawable的边界
+            if (goblinDrawable != null) {
+                goblinDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+                System.out.println("GameView: 哥布林矢量图加载成功");
+            }
+            if (orcDrawable != null) {
+                orcDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+                System.out.println("GameView: 兽人矢量图加载成功");
+            }
+            if (trollDrawable != null) {
+                trollDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+                System.out.println("GameView: 巨魔矢量图加载成功");
+            }
+
+        } catch (Exception e) {
+            System.err.println("GameView: 加载矢量图失败: " + e.getMessage());
+            e.printStackTrace();
+            createFallbackDrawables();
+        }
+    }
+
+    /**
+     * 创建备用Drawable（当矢量图加载失败时）
+     */
+    private void createFallbackDrawables() {
+        System.out.println("GameView: 创建备用Drawable");
+
+        // 创建简单的颜色Drawable作为备用
+        goblinDrawable = createColorDrawable(Color.GREEN, enemyIconSize, enemyIconSize);
+        orcDrawable = createColorDrawable(Color.RED, enemyIconSize, enemyIconSize);
+        trollDrawable = createColorDrawable(Color.BLUE, enemyIconSize, enemyIconSize);
+    }
+
+    /**
+     * 创建指定颜色的Drawable
+     */
+    private Drawable createColorDrawable(int color, int width, int height) {
+        // 创建一个简单的颜色Drawable
+        android.graphics.drawable.ColorDrawable drawable = new android.graphics.drawable.ColorDrawable(color);
+        drawable.setBounds(0, 0, width, height);
+        return drawable;
+    }
+
+    /**
+     * 绘制敌人 - 直接使用矢量图
+     */
+    private void drawEnemy(Canvas canvas, Entity enemy, Transform transform) {
+        Enemy enemyComp = enemy.getComponent(Enemy.class);
+        Health health = enemy.getComponent(Health.class);
+
+        if (enemyComp == null) return;
+
+        Drawable enemyDrawable = null;
+
+        // 根据敌人类型选择对应的矢量图
+        switch (enemyComp.type) {
+            case GOBLIN:
+                enemyDrawable = goblinDrawable;
+                break;
+            case ORC:
+                enemyDrawable = orcDrawable;
+                break;
+            case TROLL:
+                enemyDrawable = trollDrawable;
+                break;
+        }
+
+        // 绘制矢量图
+        if (enemyDrawable != null) {
+            // 保存画布状态
+            canvas.save();
+
+            // 移动画布到敌人位置
+            canvas.translate(
+                    transform.x - enemyIconSize / 2f,
+                    transform.y - enemyIconSize / 2f
+            );
+
+            // 绘制矢量图
+            enemyDrawable.draw(canvas);
+
+            // 恢复画布状态
+            canvas.restore();
+
+            System.out.println("GameView: 绘制敌人矢量图成功，位置: " + transform.x + ", " + transform.y);
+
+        } else {
+            // 备用：如果矢量图加载失败，使用颜色圆形
+            System.err.println("GameView: 敌人矢量图为null，使用备用圆形");
+            switch (enemyComp.type) {
+                case GOBLIN:
+                    paint.setColor(Color.GREEN);
+                    break;
+                case ORC:
+                    paint.setColor(Color.RED);
+                    break;
+                case TROLL:
+                    paint.setColor(Color.BLUE);
+                    break;
+            }
+            canvas.drawCircle(transform.x, transform.y, 20f, paint);
+        }
+
+        // 绘制血条
+        if (health != null) {
+            float healthRatio = (float) health.current / health.max;
+
+            paint.setColor(Color.DKGRAY);
+            float barWidth = 40f;
+            float barHeight = 5f;
+            float barX = transform.x - barWidth / 2;
+            float barY = transform.y - enemyIconSize / 2f - 10f;
+
+            canvas.drawRect(barX, barY, barX + barWidth, barY + barHeight, paint);
+
+            paint.setColor(Color.GREEN);
+            canvas.drawRect(barX, barY, barX + barWidth * healthRatio, barY + barHeight, paint);
+
+            // 显示血量数值
+            paint.setColor(Color.WHITE);
+            paint.setTextSize(10f);
+            String healthText = health.current + "/" + health.max;
+            canvas.drawText(healthText, barX, barY - 2, paint);
         }
     }
 }
