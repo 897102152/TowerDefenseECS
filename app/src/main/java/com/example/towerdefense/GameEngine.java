@@ -46,6 +46,7 @@ public class GameEngine {
     private int enemiesReachedEnd = 0;
     private int maxEnemiesAllowed = 20;
     private boolean isGameOver = false;
+    private boolean isGameWon = false;
 
     // ========== 资源管理 ==========
     private final ResourceManager resourceManager;
@@ -84,6 +85,7 @@ public class GameEngine {
         void onEnemyDefeated(Enemy enemy, int reward);
         void onTutorialStepStarted(TutorialState state, String message);
         void onGameOver(); // 新增：游戏失败回调
+        void onGameWon();
     }
 
     // =====================================================================
@@ -245,6 +247,7 @@ public class GameEngine {
         // 设置系统依赖
         attackSystem.setResourceManager(resourceManager);
         attackSystem.setGameEngine(this);
+        spawnSystem.setLevelSystem(levelSystem);
         movementSystem.setGameEngine(this);
         // 添加到世界
         world.addSystem(spawnSystem);
@@ -295,6 +298,8 @@ public class GameEngine {
     private void updateGame() {
         try {
             world.update(0.016f);
+            // 检查胜利条件
+            checkWinCondition();
             if (updateListener != null) {
                 updateListener.onGameStateUpdated(world);
             }
@@ -334,7 +339,35 @@ public class GameEngine {
         }
         System.out.println("GameEngine: 游戏已停止");
     }
+    /**
+     * 检查游戏胜利条件
+     */
+    private void checkWinCondition() {
+        if (isGameOver || isGameWon) return;
 
+        // 条件1: 所有波次都已完成
+        boolean allWavesCompleted = spawnSystem.areAllWavesCompleted();
+
+        // 条件2: 场上没有存活的敌人
+        boolean noEnemiesRemaining = world.getEntitiesWithComponent(Enemy.class).isEmpty();
+
+        if (allWavesCompleted && noEnemiesRemaining) {
+            isGameWon = true;
+            System.out.println("GameEngine: 游戏胜利！所有敌人都被消灭");
+
+            // 暂停游戏
+            pauseGame();
+
+            // 通知游戏胜利
+            if (updateListener != null) {
+                 updateListener.onGameWon();
+            }
+        }
+    }
+    // 添加获取胜利状态的方法
+    public boolean isGameWon() {
+        return isGameWon;
+    }
     // =====================================================================
     // 防御塔管理
     // =====================================================================

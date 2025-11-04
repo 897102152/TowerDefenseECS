@@ -910,4 +910,69 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             }, 3000);
         });
     }
+
+    @Override
+    public void onGameWon() {
+        showGameWinMenu();
+    }
+
+    /**
+     * 显示游戏胜利菜单
+     */
+    private void showGameWinMenu() {
+        runOnUiThread(() -> {
+            // 创建游戏胜利对话框
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.PauseMenuDialogTheme);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_pause_menu, null);
+            builder.setView(dialogView);
+            builder.setCancelable(false);
+
+            AlertDialog gameWinDialog = builder.create();
+
+            if (gameWinDialog.getWindow() != null) {
+                gameWinDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            }
+
+            // 修改对话框标题
+            TextView title = dialogView.findViewById(R.id.dialogTitle);
+            if (title != null) {
+                title.setText("游戏胜利");
+            }
+            /**
+            // 添加胜利消息
+            TextView message = dialogView.findViewById(R.id.dialogMessage); // 需要先在布局中添加这个TextView
+            if (message != null) {
+                message.setText("恭喜！你成功防守了所有敌人！");
+                message.setVisibility(View.VISIBLE);
+            }
+             */
+            // 隐藏"回到游戏"按钮
+            View btnResume = dialogView.findViewById(R.id.btnResume);
+            if (btnResume != null) {
+                btnResume.setVisibility(View.GONE);
+            }
+
+            // 设置按钮事件
+            setupGameWinMenuButtons(dialogView, gameWinDialog);
+
+            gameWinDialog.show();
+        });
+    }
+    /**
+     * 设置游戏胜利菜单按钮事件
+     */
+    private void setupGameWinMenuButtons(View dialogView, AlertDialog dialog) {
+        // 重新开始按钮
+        dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
+            dialog.dismiss();
+            restartGame();
+        });
+
+        // 返回主菜单按钮
+        dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
+            dialog.dismiss();
+            returnToMainMenu();
+        });
+    }
+
 }

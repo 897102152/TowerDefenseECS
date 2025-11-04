@@ -8,8 +8,8 @@ import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.ecs.World;
 
-import java.util.Random;
 
+import java.util.List;
 
 /**
  * 敌人生成系统 - 负责管理游戏波次和自动生成敌人
@@ -18,17 +18,6 @@ import java.util.Random;
  */
 public class SpawnSystem extends ECSSystem {
 
-
-    // 随机数生成器，用于随机选择敌人类型
-    private final Random random = new Random();
-    // 上次生成敌人的时间戳（毫秒）
-    private long lastSpawnTime = 0;
-    // 当前波次数
-    private int waveNumber = 0;
-    // 当前波次的敌人总数
-    private int enemiesInWave = 0;
-    // 当前波次已生成的敌人数
-    private int enemiesSpawned = 0;
     // 添加屏幕尺寸字段
     private int screenWidth = 1080; // 默认值
     private int screenHeight = 1920; // 默认值
@@ -36,17 +25,32 @@ public class SpawnSystem extends ECSSystem {
     private boolean isReady = false;
     private boolean isActive = false;
 
+    // 波次控制字段
+    private int currentWaveIndex = 0;
+    private int currentSpawnGroupIndex = 0;
+    private int currentEnemyInGroupCount = 0;
+    private float timeSinceLastSpawn = 0;
+    private float timeSinceWaveStart = 0;
+    private float timeSinceWaveCompleted = 0;
+    private boolean isWaveActive = false;
+    private boolean isWaitingForNextWave = false;
+    private boolean allWavesCompleted = false;
+
+    // 添加LevelSystem引用
+    private LevelSystem levelSystem;
+
     /**
      * 构造函数 - 这是一个全局管理系统，不需要特定组件
      * 负责整个游戏的敌人生成逻辑，不依赖于特定实体类型
      */
     public SpawnSystem() {
-
         super(); // 无必需组件，处理全局生成逻辑
     }
+
     public void startSpawning() {
         this.isActive = true;
     }
+
     /**
      * 设置屏幕尺寸 - 从 GameView 获取
      */
@@ -56,106 +60,171 @@ public class SpawnSystem extends ECSSystem {
         this.isReady = true; // 屏幕尺寸设置后即可开始生成
         System.out.println("SpawnSystem: 屏幕尺寸设置为 " + width + "x" + height + "，准备生成敌人");
     }
+
     @Override
     public void setWorld(World world) {
         super.setWorld(world);
         System.out.println("SpawnSystem: 世界引用已设置，world=" + (world != null ? "有效" : "null"));
     }
+
+    /**
+     * 设置LevelSystem引用
+     */
+    public void setLevelSystem(LevelSystem levelSystem) {
+        this.levelSystem = levelSystem;
+        System.out.println("SpawnSystem: LevelSystem引用已设置");
+    }
+
     @Override
     public void update(float deltaTime) {
         // 如果系统未就绪，直接返回
         if (!isReady) {
-            System.out.println("SpawnSystem: 系统未就绪，isReady="+ isReady +"等待屏幕尺寸设置");
+            System.out.println("SpawnSystem: 系统未就绪，等待屏幕尺寸设置");
             return;
         }
         if (!isActive) {
             System.out.println("SpawnSystem: 系统未激活，当前状态: isActive=" + isActive);
             return;
         }
-
-        long currentTime = System.currentTimeMillis();
-
-        // 检查当前波次是否已完成（所有敌人都已生成）
-        if (enemiesSpawned >= enemiesInWave) {
-            System.out.println("SpawnSystem: 开始新波次，当前波次: " + waveNumber);
-            startNewWave(); // 开始新的波次
+        if (allWavesCompleted) {
+            return;
         }
 
-        // 检查是否满足生成条件：距离上次生成超过2秒，且当前波次还有敌人要生成
-        if (currentTime - lastSpawnTime > 2000 && enemiesSpawned < enemiesInWave) {
-            spawnEnemy();      // 生成一个新敌人
-            lastSpawnTime = currentTime; // 更新最后生成时间
-            enemiesSpawned++;  // 增加已生成敌人数
-            System.out.println("SpawnSystem: 生成敌人 " + enemiesSpawned + "/" + enemiesInWave +
-                    "，波次: " + waveNumber);
+        timeSinceLastSpawn += deltaTime;
+
+        // 检查是否在等待下一波开始
+        if (isWaitingForNextWave) {
+            timeSinceWaveCompleted += deltaTime;
+            LevelSystem.LevelWaveConfig waveConfig = levelSystem.getCurrentWaveConfig();
+            if (timeSinceWaveCompleted >= waveConfig.delayBetweenWaves) {
+                isWaitingForNextWave = false;
+                startNextWave();
+            }
+            return;
         }
+
+        // 如果没有激活的波次，检查是否开始新波次
+        if (!isWaveActive) {
+            startNextWave();
+            return;
+        }
+
+        // 执行当前波次的生成逻辑
+        executeCurrentWave(deltaTime);
+    }
+    /**
+     * 开始下一波敌人
+     */
+    private void startNextWave() {
+        LevelSystem.LevelWaveConfig waveConfig = levelSystem.getCurrentWaveConfig();
+        if (waveConfig == null || currentWaveIndex >= waveConfig.waves.size()) {
+            // 所有波次完成
+            allWavesCompleted = true;
+            System.out.println("SpawnSystem: 所有波次已完成！");
+            return;
+        }
+
+        List<LevelSystem.WaveConfig> currentWave = waveConfig.waves.get(currentWaveIndex);
+        if (currentWave.isEmpty()) {
+            currentWaveIndex++;
+            return;
+        }
+
+        isWaveActive = true;
+        isWaitingForNextWave = false;
+        currentSpawnGroupIndex = 0;
+        currentEnemyInGroupCount = 0;
+        timeSinceWaveStart = 0;
+        timeSinceLastSpawn = 0;
+        timeSinceWaveCompleted = 0;
+
+        System.out.println("SpawnSystem: 开始第 " + (currentWaveIndex + 1) + " 波敌人，包含 " +
+                currentWave.size() + " 个生成组");
     }
 
     /**
-     * 开始新波次 - 初始化新波次的参数
-     * 每波敌人数量递增，增加游戏难度
+     * 执行当前波次的生成逻辑
      */
-    private void startNewWave() {
-        waveNumber++;           // 波次数增加
-        enemiesInWave = 3 + waveNumber; // 基础3个敌人，每波增加1个
-        enemiesSpawned = 0;     // 重置已生成敌人数
+    private void executeCurrentWave(float deltaTime) {
+        LevelSystem.LevelWaveConfig waveConfig = levelSystem.getCurrentWaveConfig();
+        List<LevelSystem.WaveConfig> currentWave = waveConfig.waves.get(currentWaveIndex);
+
+        timeSinceWaveStart += deltaTime;
+        timeSinceLastSpawn += deltaTime;
+
+        // 遍历当前波次的所有生成组
+        while (currentSpawnGroupIndex < currentWave.size()) {
+            LevelSystem.WaveConfig group = currentWave.get(currentSpawnGroupIndex);
+
+            // 检查是否应该生成这个组的敌人
+            if (currentEnemyInGroupCount < group.count &&
+                    timeSinceLastSpawn >= group.delayBetweenSpawns) {
+
+                spawnEnemy(group.enemyType, group.pathTag);
+                currentEnemyInGroupCount++;
+                timeSinceLastSpawn = 0;
+
+                System.out.println("SpawnSystem: 生成 " + group.enemyType + " 在路径 " +
+                        group.pathTag + " (" + currentEnemyInGroupCount + "/" + group.count + ")");
+
+                // 如果这个组还有敌人要生成，等待下一次生成
+                if (currentEnemyInGroupCount < group.count) {
+                    return;
+                }
+            }
+
+            // 这个组的所有敌人都已生成，移动到下一个组
+            if (currentEnemyInGroupCount >= group.count) {
+                currentSpawnGroupIndex++;
+                currentEnemyInGroupCount = 0;
+                timeSinceLastSpawn = 0;
+            } else {
+                // 等待生成这个组的下一个敌人
+                return;
+            }
+        }
+
+        // 当前波次所有组都已完成
+        completeCurrentWave();
     }
 
     /**
-     * 生成敌人 - 创建新的敌人实体并设置其属性
-     * 随机选择敌人类型，并根据类型设置不同的属性
+     * 生成指定类型和路径的敌人
      */
-    private void spawnEnemy() {
-
-
-        // 创建新的敌人实体
+    private void spawnEnemy(Enemy.Type enemyType, Path.PathTag pathTag) {
         Entity enemy = world.createEntity();
 
-        // 随机选择敌人类型
-        Enemy.Type[] types = Enemy.Type.values();
-        Enemy.Type type = types[random.nextInt(types.length)];
+        // 配置敌人属性
+        int health = 0;
+        float speed = 0;
+        int reward = 0;
 
-        // 根据敌人类型初始化属性
-        int health = 0;   // 生命值
-        float speed = 0;  // 移动速度
-        int reward = 0;   // 击败奖励
-        Path.PathTag pathTag= Path.PathTag.PATH_A;
-
-        // 配置不同类型敌人的属性
-        switch (type) {
+        switch (enemyType) {
             case GOBLIN:
-                // 哥布林：低血量、高速度、低奖励 - 快速但脆弱
                 health = 30;
                 speed = 100;
                 reward = 5;
-               //pathTag = Path.PathTag.PATH_A;
                 break;
             case ORC:
-                // 兽人：中等血量、中等速度、中等奖励 - 均衡型
                 health = 60;
                 speed = 60;
                 reward = 10;
-                pathTag = Path.PathTag.PATH_B;
                 break;
             case TROLL:
-                // 巨魔：高血量、低速度、高奖励 - 缓慢但强大
                 health = 100;
                 speed = 40;
                 reward = 20;
-                //pathTag = Path.PathTag.PATH_A;
                 break;
         }
 
-        // 使用存储的屏幕尺寸获取路径起点
         float[] startPosition = getPathStartPosition(pathTag);
-        // 为敌人实体添加必要的组件
-        enemy.addComponent(new Transform(startPosition[0], startPosition[1])); // 使用路径起点
-        enemy.addComponent(new Health(health));       // 设置生命值
-        enemy.addComponent(new Enemy(type, speed, reward, pathTag)); // 设置敌人属性
-        System.out.println("SpawnSystem: 生成 " + type + " 敌人，路径=" + pathTag +
-                "，位置=(" + startPosition[0] + ", " + startPosition[1] + ")" +
-                "，速度=" + speed);
+        enemy.addComponent(new Transform(startPosition[0], startPosition[1]));
+        enemy.addComponent(new Health(health));
+        enemy.addComponent(new Enemy(enemyType, speed, reward, pathTag));
+
+        System.out.println("SpawnSystem: 生成 " + enemyType + " 敌人，路径=" + pathTag);
     }
+
     /**
      * 根据路径标签获取路径的起点位置
      */
@@ -179,20 +248,51 @@ public class SpawnSystem extends ECSSystem {
         System.err.println("SpawnSystem: 警告！找不到路径 " + pathTag + "，使用默认起点");
         return new float[]{100, 100};
     }
+
     /**
-     * 重置系统状态 - 用于重新开始游戏
+     * 完成当前波次
+     */
+    private void completeCurrentWave() {
+        isWaveActive = false;
+
+        LevelSystem.LevelWaveConfig waveConfig = levelSystem.getCurrentWaveConfig();
+
+        // 检查是否还有下一波
+        if (currentWaveIndex + 1 < waveConfig.waves.size()) {
+            // 还有下一波，进入等待状态
+            isWaitingForNextWave = true;
+            timeSinceWaveCompleted = 0;
+            System.out.println("SpawnSystem: 第 " + (currentWaveIndex + 1) + " 波完成，等待 " +
+                    waveConfig.delayBetweenWaves + " 秒后开始下一波");
+        } else {
+            // 所有波次完成
+            allWavesCompleted = true;
+            System.out.println("SpawnSystem: 所有波次已完成！");
+        }
+
+        currentWaveIndex++;
+    }
+
+
+    /**
+     * 重置系统状态
      */
     public void reset() {
-        this.waveNumber = 0;
-        this.enemiesInWave = 0;
-        this.enemiesSpawned = 0;
-        this.lastSpawnTime = 0;
+        this.currentWaveIndex = 0;
+        this.currentSpawnGroupIndex = 0;
+        this.currentEnemyInGroupCount = 0;
+        this.timeSinceLastSpawn = 0;
+        this.timeSinceWaveStart = 0;
+        this.timeSinceWaveCompleted = 0;
+        this.isWaveActive = false;
+        this.isWaitingForNextWave = false;
+        this.allWavesCompleted = false;
         this.isActive = false;
-        this.isReady = false;  // 重要：重置就绪状态
-        System.out.println("SpawnSystem: 系统状态已完全重置 - 波次:" + waveNumber +
-                ", 敌人生成:" + enemiesSpawned + "/" + enemiesInWave +
-                ", 激活状态:" + isActive);
+        this.isReady = false;
+
+        System.out.println("SpawnSystem: 波次系统已完全重置");
     }
+
     /**
      * 设置激活状态
      */
@@ -201,7 +301,25 @@ public class SpawnSystem extends ECSSystem {
         System.out.println("SpawnSystem: 激活状态设置为 " + active);
     }
 
+    /**
+     * 检查是否所有波次都已完成
+     */
+    public boolean areAllWavesCompleted() {
+        return allWavesCompleted;
+    }
 
+    /**
+     * 获取当前波次信息
+     */
+    public String getCurrentWaveInfo() {
+        if (allWavesCompleted) {
+            return "所有波次已完成";
+        }
 
+        LevelSystem.LevelWaveConfig waveConfig = levelSystem.getCurrentWaveConfig();
+        if (waveConfig == null) return "无波次配置";
+
+        int totalWaves = waveConfig.waves.size();
+        return "波次: " + (currentWaveIndex + 1) + "/" + totalWaves;
+    }
 }
-

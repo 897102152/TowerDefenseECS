@@ -3,20 +3,27 @@ package com.example.towerdefense.systems;
 import com.example.towerdefense.ecs.ECSSystem;
 import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.ecs.Entity;
-import com.example.towerdefense.components.Transform;
-import com.example.towerdefense.components.Tower;
 import com.example.towerdefense.components.Path;
+import com.example.towerdefense.components.Enemy;
 import android.graphics.Color;
+
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 关卡管理系统 - 负责关卡初始化、路径创建、初始塔放置等
  */
-public  class LevelSystem extends ECSSystem {
+public class LevelSystem extends ECSSystem {
     private World world;
     private int currentLevelId;
 
     public LevelSystem(int levelId) {
         this.currentLevelId = levelId;
+        initializeWaveConfigs(); // 在构造函数中初始化波次配置
     }
 
     @Override
@@ -50,18 +57,9 @@ public  class LevelSystem extends ECSSystem {
      */
     private void initializeTrainingLevel() {
         createPaths_training();
-         // 训练关特有配置：更多金币、无限生命等
+        // 训练关特有配置：更多金币、无限生命等
     }
 
-    /**
-     * 初始化森林关卡
-
-    private void initializeForestLevel() {
-        createForestPaths();
-        createForestTowers();
-        // 森林关卡特有配置
-    }
-     */
     /**
      * 创建路径实体 - 教学关
      */
@@ -95,80 +93,77 @@ public  class LevelSystem extends ECSSystem {
         ));
     }
 
-    /**
-     * 创建森林关卡的路径
+    public static class WaveConfig {
+        public Enemy.Type enemyType;
+        public Path.PathTag pathTag;
+        public int count;
+        public float delayBetweenSpawns; // 同一波次内敌人生成间隔
 
-    private void createForestPaths() {
-        // 森林关卡的路径配置
-        Entity pathA = world.createEntity();
-        pathA.addComponent(new Path(
-                Path.PathTag.PATH_A,
-                new float[][]{
-                        {0.1f, 0.2f},
-                        {0.8f, 0.2f},
-                        {0.8f, 0.6f},
-                        {0.2f, 0.6f},
-                        {0.2f, 0.8f}
-                },
-                Color.GREEN,
-                10f
-        ));
-
-        // 可以添加更多森林关卡特有的路径
-    }
-     */
-    /**
-     * 创建初始防御塔 - 在游戏开始时放置几个默认的塔
-     */
-
-
-    /**
-     * 创建森林关卡的初始防御塔
-
-    private void createForestTowers() {
-        // 森林关卡特有的塔布局
-        createTower(150, 150, Tower.Type.ARCHER);
-        createTower(500, 250, Tower.Type.MAGE);
-        createTower(300, 400, Tower.Type.CANNON);
-    }
-     */
-    /**
-     * 创建防御塔实体
-     */
-    private void createTower(float x, float y, Tower.Type type, int manpowerCost, int supplyCost) {
-        Entity tower = world.createEntity();
-        tower.addComponent(new Transform(x, y));
-
-        int damage = 0;
-        float range = 0;
-        float attackSpeed = 0;
-
-        switch (type) {
-            case ARCHER:
-                damage = 10;
-                range = 150;
-                attackSpeed = 1.0f;
-                break;
-            case CANNON:
-                damage = 25;
-                range = 120;
-                attackSpeed = 0.5f;
-                break;
-            case MAGE:
-                damage = 15;
-                range = 180;
-                attackSpeed = 0.8f;
-                break;
+        public WaveConfig(Enemy.Type enemyType, Path.PathTag pathTag, int count, float delayBetweenSpawns) {
+            this.enemyType = enemyType;
+            this.pathTag = pathTag;
+            this.count = count;
+            this.delayBetweenSpawns = delayBetweenSpawns;
         }
-
-        tower.addComponent(new Tower(type, damage, range, attackSpeed,manpowerCost, supplyCost));
     }
 
     /**
-     * 获取当前关卡ID
+     * 关卡波次配置类
      */
-    public int getCurrentLevelId() {
-        return currentLevelId;
+    public static class LevelWaveConfig {
+        public List<List<WaveConfig>> waves; // 外层List是波次，内层List是该波次的敌人配置
+        public float delayBetweenWaves; // 波次间延迟
+
+        public LevelWaveConfig(List<List<WaveConfig>> waves, float delayBetweenWaves) {
+            this.waves = waves;
+            this.delayBetweenWaves = delayBetweenWaves;
+        }
+    }
+
+    // 添加波次配置存储
+    private LevelWaveConfig currentWaveConfig;
+    private Map<Integer, LevelWaveConfig> levelWaveConfigs = new HashMap<>();
+
+    /**
+     * 初始化波次配置
+     */
+    private void initializeWaveConfigs() {
+        levelWaveConfigs.clear();
+
+        // 教学关波次配置
+        List<List<WaveConfig>> trainingWaves = new ArrayList<>();
+
+        // 第一波
+        List<WaveConfig> wave1 = Arrays.asList(
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 3, 2.0f),
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 3, 2.0f)
+        );
+        //这里有一点问题，在游戏中这样写会导致路径A的敌人生成结束后再生成路径B的敌人
+        // 第二波
+        List<WaveConfig> wave2 = Arrays.asList(
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 3, 2.0f),
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 3, 2.0f)
+        );
+
+        trainingWaves.add(wave1);
+        trainingWaves.add(wave2);
+
+        levelWaveConfigs.put(0, new LevelWaveConfig(trainingWaves, 10.0f)); // 波次间延迟3秒
+    }
+
+    /**
+     * 获取当前关卡的波次配置
+     */
+    public LevelWaveConfig getCurrentWaveConfig() {
+        return levelWaveConfigs.get(currentLevelId);
+    }
+
+    /**
+     * 获取总波次数
+     */
+    public int getTotalWaves() {
+        LevelWaveConfig config = getCurrentWaveConfig();
+        return config != null ? config.waves.size() : 0;
     }
 
     /**
