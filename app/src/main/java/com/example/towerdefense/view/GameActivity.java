@@ -289,6 +289,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         gameEngine = new GameEngine(this, currentLevelId);
         gameEngine.setUpdateListener(this);
         gameView.setGameEngine(gameEngine);
+        gameView.setLevelId(currentLevelId);
         System.out.println("GameActivity: 已创建新的GameEngine实例");
         Toast.makeText(this, "当前关卡: " + currentLevelName, Toast.LENGTH_SHORT).show();
     }

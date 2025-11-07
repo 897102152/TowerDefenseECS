@@ -69,7 +69,10 @@ public class GameView extends View {
     // ========== 图标尺寸控制 ==========
     private int enemyIconSize = 60;
     private int towerIconSize;
-
+    // ========== 背景相关属性 ==========
+    private Drawable backgroundDrawable;
+    private boolean showBackground = false;
+    private int currentLevelId = -1;
     // =====================================================================
     // 构造函数和初始化
     // =====================================================================
@@ -133,6 +136,11 @@ public class GameView extends View {
         // 重新设置Drawable边界
         updateDrawableBounds();
 
+        // 更新背景图尺寸
+        if (showBackground && backgroundDrawable != null) {
+            backgroundDrawable.setBounds(0, 0, w, h);
+            System.out.println("GameView: 背景图尺寸更新为: " + w + "x" + h);
+        }
         // 加载防御塔矢量图
         loadTowerVectorDrawables();
 
@@ -152,8 +160,14 @@ public class GameView extends View {
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
-        canvas.drawColor(Color.DKGRAY);
-
+        canvas.drawColor(Color.GRAY);
+            // 先绘制背景
+        if (showBackground && backgroundDrawable != null) {
+            backgroundDrawable.draw(canvas);
+        } else {
+            // 如果没有背景，使用默认背景色
+            canvas.drawColor(Color.DKGRAY);
+        }
         if (gameEngine == null) {
             drawErrorText(canvas, "GameEngine is null");
             return;
@@ -819,7 +833,50 @@ public class GameView extends View {
     public void setGameViewListener(GameViewListener listener) {
         this.gameViewListener = listener;
     }
+    /**
+     * 设置当前关卡ID并加载对应的背景
+     */
+    public void setLevelId(int levelId) {
+        this.currentLevelId = levelId;
+        loadBackgroundDrawable(levelId);
+    }
 
+    /**
+     * 加载背景矢量图
+     */
+    private void loadBackgroundDrawable(int levelId) {
+        System.out.println("GameView: 开始加载关卡 " + levelId + " 的背景图");
+
+        // 只在教程关卡（level0）显示背景
+        if (levelId == 0) {
+            showBackground = true;
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                    backgroundDrawable = getContext().getDrawable(R.drawable.map0);
+                } else {
+                    backgroundDrawable = VectorDrawableCompat.create(getResources(), R.drawable.map0, getContext().getTheme());
+                }
+
+                if (backgroundDrawable != null) {
+                    // 设置背景图边界为整个视图大小
+                    backgroundDrawable.setBounds(0, 0, getWidth(), getHeight());
+                    System.out.println("GameView: 背景图加载成功，尺寸: " + getWidth() + "x" + getHeight());
+                } else {
+                    System.err.println("GameView: 背景图加载失败，drawable为null");
+                    showBackground = false;
+                }
+            } catch (Exception e) {
+                System.err.println("GameView: 加载背景图失败: " + e.getMessage());
+                showBackground = false;
+            }
+        } else {
+            showBackground = false;
+            backgroundDrawable = null;
+            System.out.println("GameView: 非教程关卡，不显示背景");
+        }
+
+        invalidate();
+    }
     // =====================================================================
     // 内部类
     // =====================================================================
