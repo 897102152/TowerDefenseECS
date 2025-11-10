@@ -317,6 +317,11 @@ public class GameEngine {
             gameHandler.removeCallbacks(gameLoop);
         }
         System.out.println("GameEngine: 游戏已暂停");
+
+        // 中断教程显示
+        if (isTutorialLevel) {
+            interruptTutorial();
+        }
     }
 
     /**
@@ -339,6 +344,7 @@ public class GameEngine {
         }
         System.out.println("GameEngine: 游戏已停止");
     }
+
     /**
      * 检查游戏胜利条件
      */
@@ -360,136 +366,14 @@ public class GameEngine {
 
             // 通知游戏胜利
             if (updateListener != null) {
-                 updateListener.onGameWon();
+                updateListener.onGameWon();
             }
         }
     }
+
     // 添加获取胜利状态的方法
     public boolean isGameWon() {
         return isGameWon;
-    }
-    // =====================================================================
-    // 防御塔管理
-    // =====================================================================
-
-    /**
-     * 放置防御塔
-     */
-    public void placeTower(float x, float y, Tower.Type type) {
-        // 根据塔类型获取消耗
-        int manpowerCost = 0;
-        int supplyCost = 0;
-
-        switch (type) {
-            case ARCHER:
-                manpowerCost = 10;
-                supplyCost = 5;
-                break;
-            case CANNON:
-                manpowerCost = 20;
-                supplyCost = 15;
-                break;
-            case MAGE:
-                manpowerCost = 15;
-                supplyCost = 10;
-                break;
-        }
-        if (isTutorialLevel) {
-            checkTutorialBuildProgress(type);
-        }
-        // 检查资源是否足够
-        if (resourceManager.canConsume(manpowerCost, supplyCost)) {
-            // 消耗资源
-            resourceManager.consumeManpower(manpowerCost);
-            resourceManager.consumeSupply(supplyCost);
-
-            // 创建防御塔
-            createTower(x, y, type, manpowerCost, supplyCost);
-            System.out.println("GameEngine: 放置防御塔 " + type + "，消耗人力:" + manpowerCost + "，补给:" + supplyCost);
-
-            // 通知UI更新
-            if (updateListener != null) {
-                updateListener.onGameStateUpdated(world);
-            }
-        } else {
-            System.out.println("GameEngine: 资源不足，无法放置防御塔 " + type);
-        }
-    }
-
-    /**
-     * 创建防御塔实体
-     */
-    private void createTower(float x, float y, Tower.Type type, int manpowerCost, int supplyCost) {
-        Entity tower = world.createEntity();
-        tower.addComponent(new Transform(x, y));
-
-        int damage = 0;
-        float range = 0;
-        float attackSpeed = 0;
-
-        switch (type) {
-            case ARCHER:
-                damage = 10;
-                range = 150;
-                attackSpeed = 1.0f;
-                break;
-            case CANNON:
-                damage = 25;
-                range = 120;
-                attackSpeed = 0.5f;
-                break;
-            case MAGE:
-                damage = 15;
-                range = 180;
-                attackSpeed = 0.8f;
-                break;
-        }
-
-        tower.addComponent(new Tower(type, damage, range, attackSpeed, manpowerCost, supplyCost));
-    }
-
-    /**
-     * 移除防御塔并返还人力（不返还补给）
-     */
-    public void removeTower(float x, float y) {
-        System.out.println("GameEngine: 尝试移除位置 (" + x + ", " + y + ") 的防御塔");
-
-        // 查找点击位置附近的防御塔
-        Entity towerToRemove = findTowerAtPosition(x, y);
-
-        if (towerToRemove != null) {
-            Tower towerComp = towerToRemove.getComponent(Tower.class);
-            if (towerComp != null) {
-                // 返还人力（不返还补给）
-                resourceManager.addManpower(towerComp.manpowerCost);
-                System.out.println("GameEngine: 移除防御塔 " + towerComp.type + "，返还人力:" + towerComp.manpowerCost);
-
-                // 从世界中移除实体
-                world.removeEntity(towerToRemove);
-
-                // 通知UI更新
-                if (updateListener != null) {
-                    updateListener.onGameStateUpdated(world);
-                    updateListener.onResourcesUpdated(
-                            resourceManager.getManpower(),
-                            resourceManager.getSupply()
-                    );
-                }
-
-                // 显示移除成功的Toast
-                gameHandler.post(() ->
-                        Toast.makeText(context, "移除防御塔，返还人力: " + towerComp.manpowerCost,
-                                Toast.LENGTH_SHORT).show()
-                );
-                return;
-            }
-        }
-
-        // 如果没有找到防御塔，显示提示
-        System.out.println("GameEngine: 未找到可移除的防御塔");
-        gameHandler.post(() ->
-                Toast.makeText(context, "该位置没有防御塔", Toast.LENGTH_SHORT).show()
-        );
     }
 
     /**
@@ -602,13 +486,13 @@ public class GameEngine {
         towersBuilt = 0;
         tutorialInterrupted = false;
 
-        // 延迟显示第一个教程提示
+        // 延迟显示第一个教程提示，确保UI已初始化
         tutorialHandler.postDelayed(() -> {
-            System.out.println("GameEngine: 显示第一个教程提示");
+            System.out.println("GameEngine: 延迟显示第一个教程提示");
             if (updateListener != null) {
                 updateListener.onTutorialStepStarted(tutorialState, "点击屏幕继续");
             }
-        }, 1000);
+        }, 500);
     }
 
     /**
@@ -655,17 +539,26 @@ public class GameEngine {
      */
     public void checkTutorialBuildProgress(Tower.Type towerType) {
         if (!isTutorialLevel) return;
+        System.out.println(" GameEngine: 当前正在建造防御塔type："+ towerType);
 
         switch (tutorialState) {
             case BUILD_ARCHER_TOWER:
                 if (towerType == Tower.Type.ARCHER) {
                     towersBuilt++;
                     tutorialState = TutorialState.BUILD_CANNON_TOWER;
-                    showTutorialMessage("建造炮塔", "很好！现在请建造一个炮塔");
+                    // 直接推进教程，不通过消息系统
+                    if (updateListener != null) {
+                        updateListener.onTutorialStepStarted(tutorialState, "很好！现在请建造一个炮塔");
+                    }
                 } else {
-                    // 如果建造了错误的塔类型，中断教程
-                    interruptTutorial();
-                    showTutorialMessage("建造错误", "请建造弓箭塔而不是" + getTowerTypeName(towerType));
+                    // 建造错误时显示错误提示，并阻止放置
+                    String errorMessage = "教程错误：请建造弓箭塔而不是" + getTowerTypeName(towerType);
+                    System.out.println("GameEngine: " + errorMessage);
+                    if (updateListener != null) {
+                        updateListener.onTutorialStepStarted(tutorialState, errorMessage);
+                    }
+                    // 阻止放置，返回false
+                    throw new TutorialBuildException(errorMessage);
                 }
                 break;
 
@@ -673,10 +566,16 @@ public class GameEngine {
                 if (towerType == Tower.Type.CANNON) {
                     towersBuilt++;
                     tutorialState = TutorialState.BUILD_MAGE_TOWER;
-                    showTutorialMessage("建造法师塔", "不错！最后请建造一个法师塔");
+                    if (updateListener != null) {
+                        updateListener.onTutorialStepStarted(tutorialState, "不错！最后请建造一个法师塔");
+                    }
                 } else {
-                    interruptTutorial();
-                    showTutorialMessage("建造错误", "请建造炮塔而不是" + getTowerTypeName(towerType));
+                    String errorMessage = "教程错误：请建造炮塔而不是" + getTowerTypeName(towerType);
+                    System.out.println("GameEngine: " + errorMessage);
+                    if (updateListener != null) {
+                        updateListener.onTutorialStepStarted(tutorialState, errorMessage);
+                    }
+                    throw new TutorialBuildException(errorMessage);
                 }
                 break;
 
@@ -684,7 +583,9 @@ public class GameEngine {
                 if (towerType == Tower.Type.MAGE) {
                     towersBuilt++;
                     tutorialState = TutorialState.WAITING_FOR_ENEMIES;
-                    showTutorialMessage("准备迎敌", "所有防御塔已建造完成！几秒后敌人将开始出现");
+                    if (updateListener != null) {
+                        updateListener.onTutorialStepStarted(tutorialState, "所有防御塔已建造完成！几秒后敌人将开始出现");
+                    }
 
                     // 延迟生成敌人
                     tutorialHandler.postDelayed(() -> {
@@ -693,12 +594,41 @@ public class GameEngine {
                         if (updateListener != null) {
                             updateListener.onTutorialStepStarted(tutorialState, "教程完成！敌人开始出现");
                         }
-                    }, 1000);
+                    }, 3000);
                 } else {
-                    interruptTutorial();
-                    showTutorialMessage("建造错误", "请建造法师塔而不是" + getTowerTypeName(towerType));
+                    String errorMessage = "教程错误：请建造法师塔而不是" + getTowerTypeName(towerType);
+                    System.out.println("GameEngine: " + errorMessage);
+                    if (updateListener != null) {
+                        updateListener.onTutorialStepStarted(tutorialState, errorMessage);
+                    }
+                    throw new TutorialBuildException(errorMessage);
                 }
                 break;
+        }
+    }
+
+    /**
+     * 教程建造异常类 - 用于阻止错误的防御塔放置
+     */
+    private static class TutorialBuildException extends RuntimeException {
+        public TutorialBuildException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * 获取当前教程步骤要求的防御塔类型
+     */
+    private Tower.Type getRequiredTowerTypeForTutorial() {
+        switch (tutorialState) {
+            case BUILD_ARCHER_TOWER:
+                return Tower.Type.ARCHER;
+            case BUILD_CANNON_TOWER:
+                return Tower.Type.CANNON;
+            case BUILD_MAGE_TOWER:
+                return Tower.Type.MAGE;
+            default:
+                return null; // 其他状态不要求特定类型
         }
     }
 
@@ -734,7 +664,7 @@ public class GameEngine {
      * 显示教程消息
      */
     private void showTutorialMessage(String title, String message) {
-        if (updateListener != null) {
+        if (updateListener != null && !tutorialInterrupted) {
             updateListener.onTutorialStepStarted(tutorialState, message);
         }
     }
@@ -875,6 +805,258 @@ public class GameEngine {
         }
 
         System.out.println("=== 检查完成 ===");
+    }
+
+    // =====================================================================
+    // 防御塔位置检查
+    // =====================================================================
+
+    /**
+     * 检查指定位置是否可以放置防御塔
+     */
+    public boolean canPlaceTower(float x, float y) {
+        if (world == null) return false;
+
+        // 检查是否在路径上
+        return !isPositionOnPath(x, y);
+    }
+
+    /**
+     * 检查指定位置是否在路径上
+     */
+    private boolean isPositionOnPath(float x, float y) {
+        List<Entity> pathEntities = world.getEntitiesWithComponent(Path.class);
+
+        for (Entity pathEntity : pathEntities) {
+            Path path = pathEntity.getComponent(Path.class);
+            if (path != null && path.isVisible()) {
+                float[][] screenPoints = path.convertToScreenCoordinates(screenWidth, screenHeight);
+                float pathWidth = path.getPathWidth();
+
+                for (int i = 0; i < screenPoints.length - 1; i++) {
+                    if (isPointNearLine(x, y,
+                            screenPoints[i][0], screenPoints[i][1],
+                            screenPoints[i + 1][0], screenPoints[i + 1][1],
+                            pathWidth + 20)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 检查点是否靠近线段
+     */
+    private boolean isPointNearLine(float px, float py, float x1, float y1, float x2, float y2, float threshold) {
+        float A = px - x1;
+        float B = py - y1;
+        float C = x2 - x1;
+        float D = y2 - y1;
+
+        float dot = A * C + B * D;
+        float len_sq = C * C + D * D;
+        float param = -1;
+
+        if (len_sq != 0) {
+            param = dot / len_sq;
+        }
+
+        float xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        float dx = px - xx;
+        float dy = py - yy;
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+
+        return distance <= threshold;
+    }
+
+    // =====================================================================
+    // 防御塔管理
+    // =====================================================================
+
+    /**
+     * 统一的防御塔放置方法 - 包含资源判定和位置判定 - 每次放置防御塔调用这个方法
+     */
+    public boolean placeTowerWithValidation(float x, float y, Tower.Type type) {
+        try {
+            // 1. 教程类型检查（如果是教程关卡）
+            if (isTutorialLevel) {
+                Tower.Type requiredType = getRequiredTowerTypeForTutorial();
+                if (requiredType != null && type != requiredType) {
+                    // 显示错误消息，阻止放置
+                    String errorMessage = "教程错误：请建造" + getTowerTypeName(requiredType) + "而不是" + getTowerTypeName(type);
+                    System.out.println("GameEngine: " + errorMessage);
+
+                    // 通过教程系统显示错误消息
+                    if (updateListener != null) {
+                        updateListener.onTutorialStepStarted(tutorialState, errorMessage);
+                    }
+                    return false;
+                }
+            }
+
+            // 2. 位置判定
+            if (!canPlaceTower(x, y)) {
+                System.out.println("GameEngine: 位置不可用，不能在路径上放置防御塔");
+                // 只在教程关卡显示路径限制消息
+                if (isTutorialLevel && updateListener != null) {
+                    updateListener.onTutorialStepStarted(tutorialState, "建造限制：不能在敌人路线上部署防御塔");
+                }
+                return false;
+            }
+
+            // 3. 资源判定
+            int manpowerCost = 0;
+            int supplyCost = 0;
+
+            switch (type) {
+                case ARCHER:
+                    manpowerCost = 10;
+                    supplyCost = 5;
+                    break;
+                case CANNON:
+                    manpowerCost = 20;
+                    supplyCost = 15;
+                    break;
+                case MAGE:
+                    manpowerCost = 15;
+                    supplyCost = 10;
+                    break;
+            }
+
+            if (!resourceManager.canConsume(manpowerCost, supplyCost)) {
+                System.out.println("GameEngine: 资源不足，无法放置防御塔 " + type);
+                // 只在教程关卡显示资源不足消息
+                if (isTutorialLevel && updateListener != null) {
+                    updateListener.onTutorialStepStarted(tutorialState,
+                            "资源不足：需要人力 " + manpowerCost + " 和补给 " + supplyCost +
+                                    "\n当前：人力 " + resourceManager.getManpower() + " 补给 " + resourceManager.getSupply());
+                }
+                return false;
+            }
+
+            // 所有条件都满足，放置防御塔
+            createTower(x, y, type, manpowerCost, supplyCost);
+
+            // 消耗资源
+            resourceManager.consumeManpower(manpowerCost);
+            resourceManager.consumeSupply(supplyCost);
+
+            System.out.println("GameEngine: 放置防御塔 " + type + "，消耗人力:" + manpowerCost + "，补给:" + supplyCost);
+
+            // 通知UI更新
+            if (updateListener != null) {
+                updateListener.onGameStateUpdated(world);
+            }
+
+            // 教程进度检查
+            if (isTutorialLevel) {
+                checkTutorialBuildProgress(type);
+            }
+
+            return true;
+        } catch (TutorialBuildException e) {
+            // 教程建造错误，阻止放置但不显示额外消息（已经在checkTutorialBuildProgress中显示）
+            System.out.println("GameEngine: 教程建造错误，阻止防御塔放置: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 创建防御塔实体
+     */
+    private void createTower(float x, float y, Tower.Type type, int manpowerCost, int supplyCost) {
+        Entity tower = world.createEntity();
+        tower.addComponent(new Transform(x, y));
+
+        int damage = 0;
+        float range = 0;
+        float attackSpeed = 0;
+
+        switch (type) {
+            case ARCHER:
+                damage = 10;
+                range = 150;
+                attackSpeed = 1.0f;
+                break;
+            case CANNON:
+                damage = 25;
+                range = 120;
+                attackSpeed = 0.5f;
+                break;
+            case MAGE:
+                damage = 15;
+                range = 180;
+                attackSpeed = 0.8f;
+                break;
+        }
+
+        tower.addComponent(new Tower(type, damage, range, attackSpeed, manpowerCost, supplyCost));
+    }
+
+    /**
+     * 移除防御塔并返还人力（不返还补给）
+     */
+    public void removeTower(float x, float y) {
+        System.out.println("GameEngine: 尝试移除位置 (" + x + ", " + y + ") 的防御塔");
+
+        // 查找点击位置附近的防御塔
+        Entity towerToRemove = findTowerAtPosition(x, y);
+
+        if (towerToRemove != null) {
+            Tower towerComp = towerToRemove.getComponent(Tower.class);
+            if (towerComp != null) {
+                // 返还人力（不返还补给）
+                resourceManager.addManpower(towerComp.manpowerCost);
+                System.out.println("GameEngine: 移除防御塔 " + towerComp.type + "，返还人力:" + towerComp.manpowerCost);
+
+                // 从世界中移除实体
+                world.removeEntity(towerToRemove);
+
+                // 通知UI更新
+                if (updateListener != null) {
+                    updateListener.onGameStateUpdated(world);
+                    updateListener.onResourcesUpdated(
+                            resourceManager.getManpower(),
+                            resourceManager.getSupply()
+                    );
+                }
+
+                // 只在教程关卡显示移除成功的消息
+                if (isTutorialLevel) {
+                    gameHandler.post(() -> {
+                        if (updateListener != null) {
+                            updateListener.onTutorialStepStarted(tutorialState,
+                                    "移除防御塔 " + getTowerTypeName(towerComp.type) + "，返还人力: " + towerComp.manpowerCost);
+                        }
+                    });
+                }
+                return;
+            }
+        }
+
+        // 如果没有找到防御塔，只在教程关卡显示提示
+        System.out.println("GameEngine: 未找到可移除的防御塔");
+        if (isTutorialLevel) {
+            gameHandler.post(() -> {
+                if (updateListener != null) {
+                    updateListener.onTutorialStepStarted(tutorialState, "该位置没有防御塔");
+                }
+            });
+        }
     }
 
     // =====================================================================

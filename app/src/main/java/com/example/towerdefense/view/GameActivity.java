@@ -45,8 +45,13 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private boolean isGamePaused = false;
     private boolean isGameOver = false;
     private boolean isShowingTutorial = false;
+    private boolean isShowingMessage = false;
     private GameEngine.TutorialState currentTutorialState = null;
     private String currentTutorialMessage = "";
+    // ========== 消息系统 ==========
+    private Handler messageHandler = new Handler();
+    private long lastMessageTime = 0;
+    private static final long MESSAGE_COOLDOWN = 1000; // 消息冷却时间1秒
 
     // ========== 对话框 ==========
     private AlertDialog pauseDialog;
@@ -83,12 +88,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 使用整合的初始化方法
         initializeGame();
 
-        // 延迟检查系统状态
-        new Handler().postDelayed(() -> {
-            if (gameEngine != null) {
-                gameEngine.checkSystemStatus();
-            }
-        }, 1000);
+        // 设置返回键处理
+        setupBackPressedHandler();
     }
 
     @Override
@@ -97,6 +98,15 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 如果不是因为显示暂停菜单而暂停，则暂停游戏
         if (!isGamePaused && gameEngine != null) {
             gameEngine.pauseGame();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 恢复教程显示（如果有中断的教程）
+        if (gameEngine != null && gameEngine.isTutorialLevel()) {
+            gameEngine.resumeTutorialDisplay();
         }
     }
 
@@ -178,8 +188,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         currentTutorialState = null;
         currentTutorialMessage = "";
 
-        // 隐藏教程消息
-        hideTutorialMessage();
+        // 清除所有消息
+        clearAllMessages();
     }
 
     /**
@@ -208,12 +218,15 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 查找并绑定视图组件
         gameView = findViewById(R.id.gameView);
 
-        // 设置 GameView 监听器
+        // 设置 GameView 监听器 - 修复无限递归问题
         if (gameView != null) {
             gameView.setGameViewListener(new GameView.GameViewListener() {
                 @Override
                 public void showGameMessage(String title, String message, String hint, boolean autoHide) {
-                    showGameMessage(title, message, hint, autoHide);
+                    // 只在教程关卡显示消息
+                    if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                        GameActivity.this.displayGameMessage(title, message, hint, autoHide);
+                    }
                 }
             });
         }
@@ -236,19 +249,16 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 弓箭塔选择按钮
         findViewById(R.id.btnArcherTower).setOnClickListener(v -> {
             gameView.setSelectedTowerType(Tower.Type.ARCHER);
-            Toast.makeText(this, "选中弓箭塔", Toast.LENGTH_SHORT).show();
         });
 
         // 炮塔选择按钮
         findViewById(R.id.btnCannonTower).setOnClickListener(v -> {
             gameView.setSelectedTowerType(Tower.Type.CANNON);
-            Toast.makeText(this, "选中炮塔", Toast.LENGTH_SHORT).show();
         });
 
         // 法师塔选择按钮
         findViewById(R.id.btnMageTower).setOnClickListener(v -> {
             gameView.setSelectedTowerType(Tower.Type.MAGE);
-            Toast.makeText(this, "选中法师塔", Toast.LENGTH_SHORT).show();
         });
 
         // 移除按钮 - 新增移除功能
@@ -256,17 +266,22 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             if (gameView.isRemoveMode()) {
                 // 如果已经在移除模式，则退出移除模式
                 gameView.setRemoveMode(false);
-                Toast.makeText(this, "退出移除模式", Toast.LENGTH_SHORT).show();
+                // 只在教程关卡显示消息
+                if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    displayGameMessage("移除模式", "退出移除模式", "现在可以建造防御塔", true);
+                }
             } else {
                 // 进入移除模式
                 gameView.setRemoveMode(true);
-                Toast.makeText(this, "移除模式：点击防御塔可移除", Toast.LENGTH_SHORT).show();
+                // 只在教程关卡显示消息
+                if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    displayGameMessage("移除模式", "移除模式开启", "点击防御塔可移除", true);
+                }
             }
         });
 
         // 设置按钮
         findViewById(R.id.btnSettings).setOnClickListener(v -> {
-            Toast.makeText(this, "设置按钮被点击", Toast.LENGTH_SHORT).show();
             showPauseMenu();
         });
 
@@ -291,7 +306,11 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         gameView.setGameEngine(gameEngine);
         gameView.setLevelId(currentLevelId);
         System.out.println("GameActivity: 已创建新的GameEngine实例");
-        Toast.makeText(this, "当前关卡: " + currentLevelName, Toast.LENGTH_SHORT).show();
+
+        // 只在非教程关卡显示开始消息
+        if (!gameEngine.isTutorialLevel()) {
+            // 不显示任何消息
+        }
     }
 
     // =====================================================================
@@ -313,7 +332,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             new Handler().postDelayed(() -> {
                 System.out.println("GameActivity: 现在开始游戏循环");
                 gameEngine.startGame();
-            }, 2000);
+                // 教程关卡不显示额外消息，由教程系统控制
+            }, 1000);
         } else {
             System.out.println("GameActivity: 普通关卡，立即开始游戏循环");
             gameEngine.startGame();
@@ -348,7 +368,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     ", width=" + currentWidth + ", height=" + currentHeight);
         }
 
-        Toast.makeText(this, "游戏重新开始", Toast.LENGTH_SHORT).show();
+        // 只在教程关卡显示消息
+        if (gameEngine != null && gameEngine.isTutorialLevel()) {
+            displayGameMessage("游戏重启", "游戏重新开始", "准备迎接挑战", true);
+        }
     }
 
     /**
@@ -422,8 +445,11 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         isBuildMode = !isBuildMode;
         setBuildMode(isBuildMode);
 
-        String message = isBuildMode ? "建造模式开启" : "建造模式关闭";
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        // 只在教程关卡显示消息
+        if (gameEngine != null && gameEngine.isTutorialLevel()) {
+            String message = isBuildMode ? "建造模式开启" : "建造模式关闭";
+            displayGameMessage("建造模式", message, isBuildMode ? "现在可以放置防御塔" : "建造功能已禁用", true);
+        }
     }
 
     // =====================================================================
@@ -517,13 +543,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 结束当前Activity，返回主菜单
         finish();
-
-        Toast.makeText(this, "返回主菜单", Toast.LENGTH_SHORT).show();
-        System.out.println("GameActivity: 返回主菜单");
     }
 
     // =====================================================================
-    // 教程系统相关方法
+    // 教程系统相关方法（完全独立）
     // =====================================================================
 
     /**
@@ -544,21 +567,24 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         if (tutorialOverlay != null) {
             System.out.println("GameActivity：教学点击监听器已设置");
             tutorialOverlay.setOnClickListener(v -> {
-                if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                if (gameEngine != null && gameEngine.isTutorialLevel() && isShowingTutorial) {
                     gameEngine.advanceTutorial();
                     System.out.println("GameActivity：调用gameEngine.advanceTutorial方法");
+                } else {
+                    // 如果不是教程消息，点击隐藏消息
+                    hideGameMessage();
                 }
             });
         }
     }
 
     /**
-     * 显示教程提示（具有最高优先级）
+     * 显示教程提示 - 只由教程系统调用
      */
     private void showTutorialMessage(String title, String message, String hint) {
         runOnUiThread(() -> {
             isShowingTutorial = true;
-            currentTutorialMessage = message;
+            isShowingMessage = false; // 确保普通消息标志为false
 
             if (tutorialTitle != null && tutorialMessage != null && tutorialHint != null) {
                 tutorialTitle.setText(title);
@@ -571,7 +597,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     }
 
     /**
-     * 隐藏教程消息
+     * 隐藏教程消息 - 只由教程系统调用
      */
     private void hideTutorialMessage() {
         runOnUiThread(() -> {
@@ -583,64 +609,120 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     }
 
     // =====================================================================
-    // 消息显示系统
+    // 统一的消息显示系统（使用教程提示框）
     // =====================================================================
 
     /**
-     * 显示游戏消息（区分教程消息和普通消息）
+     * 显示游戏消息 - 统一使用教程提示框显示
+     * 这是公开接口，供外部调用
      */
     void showGameMessage(String title, String message, String hint, boolean autoHide) {
+        // 只在教程关卡显示消息
+        if (gameEngine != null && gameEngine.isTutorialLevel()) {
+            displayGameMessage(title, message, hint, autoHide);
+        }
+    }
+
+    /**
+     * 内部实现的消息显示方法 - 使用教程提示框显示所有消息
+     */
+    private void displayGameMessage(String title, String message, String hint, boolean autoHide) {
         runOnUiThread(() -> {
-            // 如果是教程消息，直接显示
-            if (title.contains("教程") || title.contains("建造错误")) {
-                showTutorialMessage(title, message, hint);
+            // 如果正在显示教程消息，不显示普通消息
+            if (isShowingTutorial) {
+                System.out.println("GameActivity: 正在显示教程消息，忽略普通消息: " + title);
                 return;
             }
 
-            // 如果是普通消息且正在显示教程，延迟显示
-            if (isShowingTutorial) {
-                System.out.println("GameActivity: 正在显示教程，延迟显示普通消息");
-                new Handler().postDelayed(() -> {
-                    showTemporaryMessage(title, message, hint, autoHide);
-                }, 10);
-            } else {
-                showTemporaryMessage(title, message, hint, autoHide);
+            // 防止消息过快重复显示
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastMessageTime < MESSAGE_COOLDOWN) {
+                System.out.println("GameActivity: 消息显示过快，忽略");
+                return;
+            }
+            lastMessageTime = currentTime;
+
+            // 如果正在显示消息，先隐藏当前消息
+            if (isShowingMessage) {
+                hideGameMessageImmediately();
+            }
+
+            isShowingMessage = true;
+
+            // 使用教程提示框显示消息
+            showMessageAsTutorialOverlay(title, message, hint, autoHide);
+
+            // 如果设置了自动隐藏，延迟隐藏消息
+            if (autoHide) {
+                messageHandler.postDelayed(() -> {
+                    hideGameMessage();
+                }, 3000);
             }
         });
     }
 
     /**
-     * 显示临时消息（非教程消息）
+     * 使用教程提示框显示消息
      */
-    private void showTemporaryMessage(String title, String message, String hint, boolean autoHide) {
-        if (tutorialTitle != null && tutorialMessage != null && tutorialHint != null) {
-            tutorialTitle.setText(title);
-            tutorialMessage.setText(message);
-            tutorialHint.setText(hint);
-            tutorialOverlay.setVisibility(View.VISIBLE);
-            System.out.println("GameActivity: 临时消息已显示 - " + title);
+    private void showMessageAsTutorialOverlay(String title, String message, String hint, boolean autoHide) {
+        runOnUiThread(() -> {
+            if (tutorialTitle != null && tutorialMessage != null && tutorialHint != null) {
+                tutorialTitle.setText(title);
+                tutorialMessage.setText(message);
+                tutorialHint.setText(hint);
+                tutorialOverlay.setVisibility(View.VISIBLE);
 
-            // 如果设置了自动隐藏，延迟隐藏消息
-            if (autoHide) {
-                new Handler().postDelayed(() -> {
-                    hideTemporaryMessage();
-                }, 3000);
+                // 设置点击行为
+                tutorialOverlay.setOnClickListener(v -> {
+                    if (autoHide) {
+                        hideGameMessage();
+                    }
+                    // 对于非自动隐藏的消息，点击不做特殊处理
+                });
+
+                System.out.println("GameActivity: 显示消息 - " + title + ": " + message);
             }
-        }
+        });
     }
 
     /**
-     * 隐藏临时消息，恢复教程显示
+     * 隐藏游戏消息
      */
-    private void hideTemporaryMessage() {
+    private void hideGameMessage() {
         runOnUiThread(() -> {
+            isShowingMessage = false;
             if (tutorialOverlay != null) {
                 tutorialOverlay.setVisibility(View.GONE);
             }
+        });
+    }
 
-            // 恢复教程显示
-            if (isShowingTutorial && gameEngine != null) {
-                gameEngine.resumeTutorialDisplay();
+    /**
+     * 立即隐藏游戏消息
+     */
+    private void hideGameMessageImmediately() {
+        runOnUiThread(() -> {
+            isShowingMessage = false;
+            // 移除所有待处理的消息隐藏任务
+            messageHandler.removeCallbacksAndMessages(null);
+            if (tutorialOverlay != null) {
+                tutorialOverlay.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    /**
+     * 清除所有消息状态
+     */
+    private void clearAllMessages() {
+        runOnUiThread(() -> {
+            isShowingMessage = false;
+            lastMessageTime = 0;
+            messageHandler.removeCallbacksAndMessages(null);
+
+            // 隐藏教程消息
+            if (isShowingTutorial) {
+                hideTutorialMessage();
             }
         });
     }
@@ -814,26 +896,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     @Override
     public void onEnemyDefeated(Enemy enemy, int reward) {
-        runOnUiThread(() -> {
-            // 显示击败敌人的反馈
-            String enemyName = "";
-            switch (enemy.type) {
-                case GOBLIN:
-                    enemyName = "哥布林";
-                    break;
-                case ORC:
-                    enemyName = "兽人";
-                    break;
-                case TROLL:
-                    enemyName = "巨魔";
-                    break;
-            }
-
-            String message = "击败" + enemyName + "! 获得补给: " + reward;
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-
-            System.out.println("GameActivity: " + message);
-        });
+        // 不显示任何消息
+        System.out.println("GameActivity: 敌人被击败 - " + enemy.type + "，奖励: " + reward);
     }
 
     /**
@@ -883,9 +947,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     break;
 
                 case COMPLETED:
-                    showGameMessage("完成",
-                            "敌人已经开始出现！使用你的防御塔击败它们",
-                            "祝你好运！", true);
+                    // 教程完成时不显示消息
+                    hideTutorialMessage();
                     break;
             }
         });
@@ -900,15 +963,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             isGameOver = true;
             System.out.println("GameActivity: 游戏失败回调触发");
 
-            // 显示游戏失败消息
-            showGameMessage("游戏失败",
-                    "太多敌人到达了终点！\n通过敌人: " + gameEngine.getEnemiesReachedEnd() + "/" + gameEngine.getMaxEnemiesAllowed(),
-                    "点击确定查看结果", false);
-
-            // 延迟显示失败菜单
-            new Handler().postDelayed(() -> {
-                showGameOverMenu();
-            }, 3000);
+            // 不显示失败消息，直接显示失败菜单
+            showGameOverMenu();
         });
     }
 
@@ -939,14 +995,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             if (title != null) {
                 title.setText("游戏胜利");
             }
-            /**
-            // 添加胜利消息
-            TextView message = dialogView.findViewById(R.id.dialogMessage); // 需要先在布局中添加这个TextView
-            if (message != null) {
-                message.setText("恭喜！你成功防守了所有敌人！");
-                message.setVisibility(View.VISIBLE);
-            }
-             */
+
             // 隐藏"回到游戏"按钮
             View btnResume = dialogView.findViewById(R.id.btnResume);
             if (btnResume != null) {
@@ -959,6 +1008,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             gameWinDialog.show();
         });
     }
+
     /**
      * 设置游戏胜利菜单按钮事件
      */

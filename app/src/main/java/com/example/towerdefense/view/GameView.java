@@ -112,6 +112,7 @@ public class GameView extends View {
 
         // 加载矢量图资源
         loadVectorDrawables();
+        loadTowerVectorDrawables();
     }
 
     // =====================================================================
@@ -161,7 +162,7 @@ public class GameView extends View {
     protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
         canvas.drawColor(Color.GRAY);
-            // 先绘制背景
+        // 先绘制背景
         if (showBackground && backgroundDrawable != null) {
             backgroundDrawable.draw(canvas);
         } else {
@@ -226,15 +227,9 @@ public class GameView extends View {
         System.out.println("GameView: 开始加载防御塔矢量图");
 
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                archerTowerDrawable = getContext().getDrawable(R.drawable.tower_infantry);
-                cannonTowerDrawable = getContext().getDrawable(R.drawable.tower_anti_tank);
-                mageTowerDrawable = getContext().getDrawable(R.drawable.tower_artillery);
-            } else {
-                archerTowerDrawable = VectorDrawableCompat.create(getResources(), R.drawable.tower_infantry, getContext().getTheme());
-                cannonTowerDrawable = VectorDrawableCompat.create(getResources(), R.drawable.tower_anti_tank, getContext().getTheme());
-                mageTowerDrawable = VectorDrawableCompat.create(getResources(), R.drawable.tower_artillery, getContext().getTheme());
-            }
+            archerTowerDrawable = getContext().getDrawable(R.drawable.tower_infantry);
+            cannonTowerDrawable = getContext().getDrawable(R.drawable.tower_anti_tank);
+            mageTowerDrawable = getContext().getDrawable(R.drawable.tower_artillery);
 
             System.out.println("GameView: 防御塔矢量图加载完成");
         } catch (Exception e) {
@@ -337,15 +332,19 @@ public class GameView extends View {
                 gameEngine.removeTower(x, y);
             } else if (selectedTowerType != null) {
                 GridPosition gridPos = convertToGridPosition(x, y);
+                ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
 
-                if (isGridOnPath(gridPos)) {
-                    System.out.println("GameView: 不能在敌人路线上部署防御塔");
-                    highlightGrid(gridPos);
-                    showPathRestrictionMessage();
-                } else {
-                    ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
-                    gameEngine.placeTower(screenPos.x, screenPos.y, selectedTowerType);
+                // 使用统一的防御塔放置方法
+                boolean placed = gameEngine.placeTowerWithValidation(screenPos.x, screenPos.y, selectedTowerType);
+
+                if (placed) {
                     System.out.println("放置塔在网格位置: (" + gridPos.x + ", " + gridPos.y + ")");
+                    // 放置成功后显示成功消息
+                    //showTowerPlacedMessage(selectedTowerType);
+                } else {
+                    System.out.println("GameView: 无法在指定位置放置防御塔");
+                    highlightGrid(gridPos);
+                    // 不再调用showPathRestrictionMessage，因为GameEngine已经处理了错误消息
                 }
             } else {
                 System.out.println("GameView: 建造模式下未选择塔类型");
@@ -363,79 +362,6 @@ public class GameView extends View {
     public boolean performClick() {
         super.performClick();
         return true;
-    }
-
-    // =====================================================================
-    // 路径检测和网格高亮
-    // =====================================================================
-
-    /**
-     * 检测指定网格位置是否有路径
-     */
-    private boolean isGridOnPath(GridPosition gridPos) {
-        if (gameEngine == null || gameEngine.getWorld() == null) {
-            return false;
-        }
-
-        World world = gameEngine.getWorld();
-        List<Entity> pathEntities = world.getEntitiesWithComponent(Path.class);
-        ScreenPosition screenPos = convertToScreenPosition(gridPos.x, gridPos.y);
-
-        for (Entity pathEntity : pathEntities) {
-            Path path = pathEntity.getComponent(Path.class);
-            if (path != null && path.isVisible()) {
-                float[][] screenPoints = path.convertToScreenCoordinates(getWidth(), getHeight());
-                float pathWidth = path.getPathWidth();
-
-                for (int i = 0; i < screenPoints.length - 1; i++) {
-                    if (isPointNearLine(screenPos.x, screenPos.y,
-                            screenPoints[i][0], screenPoints[i][1],
-                            screenPoints[i + 1][0], screenPoints[i + 1][1],
-                            pathWidth + 20)) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * 检查点是否靠近线段
-     */
-    private boolean isPointNearLine(float px, float py, float x1, float y1, float x2, float y2, float threshold) {
-        float A = px - x1;
-        float B = py - y1;
-        float C = x2 - x1;
-        float D = y2 - y1;
-
-        float dot = A * C + B * D;
-        float len_sq = C * C + D * D;
-        float param = -1;
-
-        if (len_sq != 0) {
-            param = dot / len_sq;
-        }
-
-        float xx, yy;
-
-        if (param < 0) {
-            xx = x1;
-            yy = y1;
-        } else if (param > 1) {
-            xx = x2;
-            yy = y2;
-        } else {
-            xx = x1 + param * C;
-            yy = y1 + param * D;
-        }
-
-        float dx = px - xx;
-        float dy = py - yy;
-        float distance = (float) Math.sqrt(dx * dx + dy * dy);
-
-        return distance <= threshold;
     }
 
     /**
@@ -551,26 +477,30 @@ public class GameView extends View {
     private void drawTower(Canvas canvas, Entity tower, Transform transform) {
         Tower towerComp = tower.getComponent(Tower.class);
         if (towerComp == null) return;
+        try {
+            Drawable towerDrawable = getTowerDrawable(towerComp.type);
+            if (towerDrawable != null) {
+                // 获取矢量图固有尺寸和宽高比
+                float aspectRatio = getDrawableAspectRatio(towerDrawable);
 
-        Drawable towerDrawable = getTowerDrawable(towerComp.type);
+                // 计算绘制尺寸：宽度等于网格大小，高度按比例缩放
+                int drawWidth = towerIconSize;
+                int drawHeight = (int) (towerIconSize / aspectRatio);
 
-        if (towerDrawable != null) {
-            // 获取矢量图固有尺寸和宽高比
-            float aspectRatio = getDrawableAspectRatio(towerDrawable);
+                // 计算绘制位置（使防御塔位于网格中心）
+                int left = (int) (transform.x - drawWidth / 2f);
+                int top = (int) (transform.y - drawHeight / 2f);
 
-            // 计算绘制尺寸：宽度等于网格大小，高度按比例缩放
-            int drawWidth = towerIconSize;
-            int drawHeight = (int) (towerIconSize / aspectRatio);
-
-            // 计算绘制位置（使防御塔位于网格中心）
-            int left = (int) (transform.x - drawWidth / 2f);
-            int top = (int) (transform.y - drawHeight / 2f);
-
-            // 设置Drawable边界并绘制
-            towerDrawable.setBounds(left, top, left + drawWidth, top + drawHeight);
-            towerDrawable.draw(canvas);
-        } else {
-            System.err.println("GameView: 防御塔矢量图为null，类型: " + towerComp.type);
+                // 设置Drawable边界并绘制
+                towerDrawable.setBounds(left, top, left + drawWidth, top + drawHeight);
+                towerDrawable.draw(canvas);
+            } else {
+                drawFallbackTower(canvas, transform, towerComp.type);
+            }
+        }catch(Exception e){
+            System.err.println("GameView: 绘制防御塔时发生异常: " + e.getMessage());
+            // 使用备用绘制方案
+            drawFallbackTower(canvas, transform, towerComp.type);
         }
 
         // 绘制攻击范围
@@ -578,6 +508,19 @@ public class GameView extends View {
             paint.setColor(Color.argb(30, 255, 255, 255));
             canvas.drawCircle(transform.x, transform.y, towerComp.range, paint);
         }
+    }
+
+    // 添加备用绘制方法
+    private void drawFallbackTower(Canvas canvas, Transform transform, Tower.Type type) {
+        // 简单的几何图形绘制
+        paint.setStyle(Paint.Style.FILL);
+        switch (type) {
+            case ARCHER: paint.setColor(Color.GREEN); break;
+            case CANNON: paint.setColor(Color.RED); break;
+            case MAGE: paint.setColor(Color.BLUE); break;
+            default: paint.setColor(Color.GRAY); break;
+        }
+        canvas.drawCircle(transform.x, transform.y, towerIconSize / 3f, paint);
     }
 
     /**
@@ -767,20 +710,29 @@ public class GameView extends View {
 
     private void showBuildModeRequiredMessage() {
         System.out.println("GameView: 请先开启建造模式来放置防御塔");
-    }
-
-    private void showPathRestrictionMessage() {
         if (gameViewListener != null) {
-            gameViewListener.showGameMessage("建造限制", "不能在敌人路线上部署防御塔", "请选择其他位置", true);
-        }
-        if (gameEngine != null && gameEngine.isTutorialLevel()) {
-            gameEngine.interruptTutorial();
+            gameViewListener.showGameMessage("建造提示", "请先开启建造模式", "点击右下角建造按钮开启建造模式", true);
         }
     }
 
     private void showNoTowerSelectedMessage() {
         if (gameViewListener != null) {
             gameViewListener.showGameMessage("建造提示", "请先选择要建造的防御塔类型", "点击建造菜单中的塔图标", true);
+        }
+    }
+
+    /**
+     * 显示防御塔放置成功消息
+     */
+    private void showTowerPlacedMessage(Tower.Type towerType) {
+        if (gameViewListener != null) {
+            String towerName = "";
+            switch (towerType) {
+                case ARCHER: towerName = "弓箭塔"; break;
+                case CANNON: towerName = "炮塔"; break;
+                case MAGE: towerName = "法师塔"; break;
+            }
+            gameViewListener.showGameMessage("建造成功", towerName + "已放置", "继续建造或退出建造模式", true);
         }
     }
 
@@ -833,6 +785,7 @@ public class GameView extends View {
     public void setGameViewListener(GameViewListener listener) {
         this.gameViewListener = listener;
     }
+
     /**
      * 设置当前关卡ID并加载对应的背景
      */
@@ -877,6 +830,7 @@ public class GameView extends View {
 
         invalidate();
     }
+
     // =====================================================================
     // 内部类
     // =====================================================================
