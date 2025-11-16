@@ -811,32 +811,37 @@ public class GameView extends View {
     private void loadBackgroundDrawable(int levelId) {
         System.out.println("GameView: 开始加载关卡 " + levelId + " 的背景图");
 
-        // 只在教程关卡（level0）显示背景
-        if (levelId == 0) {
-            showBackground = true;
-            try {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                    backgroundDrawable = getContext().getDrawable(R.drawable.map0);
-                } else {
-                    backgroundDrawable = VectorDrawableCompat.create(getResources(), R.drawable.map0, getContext().getTheme());
-                }
+        showBackground = true;
+        try {
+            int drawableId;
+            switch (levelId) {
+                case 0: // 教学关
+                    drawableId = R.drawable.map0;
+                    break;
+                case 1: // 第一关
+                    drawableId = R.drawable.map1;
+                    break;
+                default:
+                    drawableId = R.drawable.map0; // 默认
+            }
 
-                if (backgroundDrawable != null) {
-                    // 设置背景图边界为整个视图大小
-                    backgroundDrawable.setBounds(0, 0, getWidth(), getHeight());
-                    System.out.println("GameView: 背景图加载成功，尺寸: " + getWidth() + "x" + getHeight());
-                } else {
-                    System.err.println("GameView: 背景图加载失败，drawable为null");
-                    showBackground = false;
-                }
-            } catch (Exception e) {
-                System.err.println("GameView: 加载背景图失败: " + e.getMessage());
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                backgroundDrawable = getContext().getDrawable(drawableId);
+            } else {
+                backgroundDrawable = VectorDrawableCompat.create(getResources(), drawableId, getContext().getTheme());
+            }
+
+            if (backgroundDrawable != null) {
+                // 设置背景图边界为整个视图大小
+                backgroundDrawable.setBounds(0, 0, getWidth(), getHeight());
+                System.out.println("GameView: 背景图加载成功，尺寸: " + getWidth() + "x" + getHeight());
+            } else {
+                System.err.println("GameView: 背景图加载失败，drawable为null");
                 showBackground = false;
             }
-        } else {
+        } catch (Exception e) {
+            System.err.println("GameView: 加载背景图失败: " + e.getMessage());
             showBackground = false;
-            backgroundDrawable = null;
-            System.out.println("GameView: 非教程关卡，不显示背景");
         }
 
         invalidate();

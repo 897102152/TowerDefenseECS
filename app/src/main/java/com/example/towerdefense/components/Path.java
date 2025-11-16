@@ -12,7 +12,8 @@ public class Path implements Component {
      */
     public enum PathTag {
         PATH_A,
-        PATH_B
+        PATH_B,
+        PATH_C
     }
 
     // 公共字段

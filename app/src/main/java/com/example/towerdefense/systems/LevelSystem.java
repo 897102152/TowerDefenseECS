@@ -7,7 +7,6 @@ import com.example.towerdefense.components.Path;
 import com.example.towerdefense.components.Enemy;
 import android.graphics.Color;
 
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,8 +42,7 @@ public class LevelSystem extends ECSSystem {
                 initializeTrainingLevel();
                 break;
             case 1: // 正式关卡1
-                initializeTrainingLevel();
-                //initializeForestLevel();
+                initializeLevel1();
                 break;
             // 可以添加更多关卡...
             default:
@@ -56,14 +54,22 @@ public class LevelSystem extends ECSSystem {
      * 初始化训练关卡
      */
     private void initializeTrainingLevel() {
-        createPaths_training();
+        createTrainingLevelPaths();
         // 训练关特有配置：更多金币、无限生命等
+    }
+
+    /**
+     * 初始化第一关
+     */
+    private void initializeLevel1() {
+        createLevel1Paths();
+        // 第一关特有配置
     }
 
     /**
      * 创建路径实体 - 教学关
      */
-    private void createPaths_training() {
+    private void createTrainingLevelPaths() {
         // 创建路径A - 较长的路径
         Entity pathA = world.createEntity();
         pathA.addComponent(new Path(
@@ -89,6 +95,65 @@ public class LevelSystem extends ECSSystem {
                         {0.9f, 0.5f}
                 },
                 Color.rgb(100, 100, 255),
+                10f
+        ));
+    }
+
+    /**
+     * 创建路径实体 - 第一关
+     */
+    private void createLevel1Paths() {
+        // 创建路径A
+        Entity pathA = world.createEntity();
+        pathA.addComponent(new Path(
+                Path.PathTag.PATH_A,
+                new float[][]{
+                        {0.05f, 0.15f},
+                        {0.6f, 0.15f},
+                        {0.6f, 0.25f},
+                        {0.95f, 0.25f}
+                },
+                Color.GRAY,
+                10f
+        ));
+
+        // 创建路径B
+        Entity pathB = world.createEntity();
+        pathB.addComponent(new Path(
+                Path.PathTag.PATH_B,
+                new float[][]{
+                        {0.05f, 0.5f},
+                        {0.2f, 0.5f},
+                        {0.2f, 0.6f},
+                        {0.3f, 0.6f},
+                        {0.3f, 0.4f},
+                        {0.4f, 0.4f},
+                        {0.4f, 0.5f},
+                        {0.6f, 0.5f},
+                        {0.6f, 0.6f},
+                        {0.95f, 0.6f},
+                        {0.95f, 0.25f}
+                },
+                Color.rgb(100, 100, 255),
+                10f
+        ));
+
+        // 创建路径C
+        Entity pathC = world.createEntity();
+        pathC.addComponent(new Path(
+                Path.PathTag.PATH_C,
+                new float[][]{
+                        {0.05f, 0.85f},
+                        {0.4f, 0.85f},
+                        {0.4f, 0.75f},
+                        {0.5f, 0.75f},
+                        {0.5f, 0.85f},
+                        {0.7f, 0.85f},
+                        {0.7f, 0.6f},
+                        {0.95f, 0.6f},
+                        {0.95f, 0.25f}
+                },
+                Color.rgb(255, 100, 100),
                 10f
         ));
     }
@@ -133,13 +198,13 @@ public class LevelSystem extends ECSSystem {
         // 教学关波次配置
         List<List<WaveConfig>> trainingWaves = new ArrayList<>();
 
-        // 第一波
+        // 第一波 - 同时生成
         List<WaveConfig> wave1 = Arrays.asList(
                 new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 3, 2.0f),
                 new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 3, 2.0f)
         );
-        //这里有一点问题，在游戏中这样写会导致路径A的敌人生成结束后再生成路径B的敌人
-        // 第二波
+
+        // 第二波 - 同时生成
         List<WaveConfig> wave2 = Arrays.asList(
                 new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 3, 2.0f),
                 new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 3, 2.0f)
@@ -148,7 +213,37 @@ public class LevelSystem extends ECSSystem {
         trainingWaves.add(wave1);
         trainingWaves.add(wave2);
 
-        levelWaveConfigs.put(0, new LevelWaveConfig(trainingWaves, 10.0f)); // 波次间延迟3秒
+        levelWaveConfigs.put(0, new LevelWaveConfig(trainingWaves, 10.0f));
+
+        // 第一关波次配置
+        List<List<WaveConfig>> level1Waves = new ArrayList<>();
+
+        // 第一波 - 三条路径同时生成敌人
+        List<WaveConfig> level1Wave1 = Arrays.asList(
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 5, 1.5f),
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 5, 1.5f),
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_C, 5, 1.5f)
+        );
+
+        // 第二波 - 不同类型敌人在不同路径
+        List<WaveConfig> level1Wave2 = Arrays.asList(
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 3, 2.0f),
+                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_B, 2, 3.0f),
+                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_C, 3, 2.0f)
+        );
+
+        // 第三波 - Boss波
+        List<WaveConfig> level1Wave3 = Arrays.asList(
+                new WaveConfig(Enemy.Type.TROLL, Path.PathTag.PATH_A, 1, 0f),
+                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_B, 3, 1.5f),
+                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_C, 3, 1.5f)
+        );
+
+        level1Waves.add(level1Wave1);
+        level1Waves.add(level1Wave2);
+        level1Waves.add(level1Wave3);
+
+        levelWaveConfigs.put(1, new LevelWaveConfig(level1Waves, 15.0f));
     }
 
     /**

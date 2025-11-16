@@ -4,6 +4,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 import android.widget.TextView;
@@ -39,6 +40,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private TextView tutorialTitle;
     private TextView tutorialMessage;
     private TextView tutorialHint;
+    private Button btnStartGame;
 
     // ========== 状态控制 ==========
     private boolean isBuildMode = false;
@@ -46,6 +48,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private boolean isGameOver = false;
     private boolean isShowingTutorial = false;
     private boolean isShowingMessage = false;
+    private boolean isGameStarted = false;
     private GameEngine.TutorialState currentTutorialState = null;
     private String currentTutorialMessage = "";
     // ========== 消息系统 ==========
@@ -144,6 +147,9 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private void initializeGame() {
         System.out.println("GameActivity: initializeGame()开始游戏初始化进程");
 
+        // 重置游戏开始状态
+        isGameStarted = (currentLevelId == 0); // 教程关卡自动开始
+
         // 重置UI状态
         resetUIState();
         System.out.println("GameActivity: initializeGame()重置UI状态");
@@ -189,11 +195,32 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         isGameOver = false;
         isShowingTutorial = false;
+        isShowingMessage = false;
+        isGameStarted = (currentLevelId == 0); // 重置游戏开始状态
         currentTutorialState = null;
         currentTutorialMessage = "";
 
-        // 清除所有消息
-        clearAllMessages();
+        // 清除所有消息和延迟任务
+        messageHandler.removeCallbacksAndMessages(null);
+        lastMessageTime = 0;
+
+        // 隐藏教程消息
+        if (tutorialOverlay != null) {
+            tutorialOverlay.setVisibility(View.GONE);
+        }
+
+        // 清除按钮选中状态
+        clearButtonSelection();
+
+        // 重置建造模式
+        isBuildMode = false;
+        if (gameView != null) {
+            gameView.setBuildMode(false);
+            gameView.setShowGrid(false);
+        }
+        if (buildMenuLayout != null) {
+            buildMenuLayout.setVisibility(View.GONE);
+        }
     }
 
     /**
@@ -243,6 +270,22 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 初始资源显示
         updateResourceDisplay();
+
+        // ========== 初始化开始按钮 ==========
+        btnStartGame = findViewById(R.id.btnStartGame);
+        if (btnStartGame != null) {
+            btnStartGame.setOnClickListener(v -> {
+                startGameWave();
+            });
+
+            // 只在非教程关卡显示开始按钮
+            if (currentLevelId != 0) {
+                btnStartGame.setVisibility(View.VISIBLE);
+                System.out.println("GameActivity: 非教程关卡，显示开始按钮");
+            } else {
+                btnStartGame.setVisibility(View.GONE);
+            }
+        }
 
         // ========== 建造模式主按钮 ==========
         findViewById(R.id.btnBuildMode).setOnClickListener(v -> {
@@ -349,7 +392,23 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             }, 1000);
         } else {
             System.out.println("GameActivity: 普通关卡，立即开始游戏循环");
+            // 普通关卡开始游戏循环，但敌人生成系统保持关闭
             gameEngine.startGame();
+            System.out.println("GameActivity: 普通关卡，敌人生成系统初始为关闭状态");
+        }
+    }
+    /**
+     * 开始游戏波次
+     */
+    private void startGameWave() {
+        if (gameEngine != null && !isGameStarted) {
+            isGameStarted = true;
+            btnStartGame.setVisibility(View.GONE);
+
+            // 启用敌人生成
+            gameEngine.enableEnemySpawning();
+
+            System.out.println("GameActivity: 游戏波次开始 - 敌人生成已启用");
         }
     }
 
@@ -368,9 +427,14 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         int currentHeight = gameView.getHeight();
         System.out.println("GameActivity: 当前屏幕尺寸: " + currentWidth + "x" + currentHeight);
 
-        // 使用整合的初始化方法
-        System.out.println("GameActivity: 正在执行initializeGame()方法");
-        initializeGame();
+        // 重置UI状态
+        resetUIState();
+
+        // 重新初始化UI组件
+        initializeUI();
+
+        // 设置游戏引擎
+        setupGameEngine();
 
         // 确保屏幕尺寸被重新设置
         if (gameEngine != null && currentWidth > 0 && currentHeight > 0) {
@@ -381,12 +445,23 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     ", width=" + currentWidth + ", height=" + currentHeight);
         }
 
-        // 只在教程关卡显示消息
+        // 如果是教程关卡，确保教程系统正确初始化
         if (gameEngine != null && gameEngine.isTutorialLevel()) {
-            displayGameMessage("游戏重启", "游戏重新开始", "准备迎接挑战", true);
-        }
-    }
+            System.out.println("GameActivity: 教程关卡重新开始，当前教程状态: " + gameEngine.getTutorialState());
 
+            // 延迟触发第一个教程提示，确保系统完全初始化
+            new Handler().postDelayed(() -> {
+                if (gameEngine != null) {
+                    System.out.println("GameActivity: 延迟触发第一个教程提示");
+                    // 直接调用我们自己的 onTutorialStepStarted 方法
+                    onTutorialStepStarted(GameEngine.TutorialState.WELCOME, "点击屏幕继续");
+                }
+            }, 500);
+        }
+
+        // 确保游戏开始
+        startGame();
+    }
     /**
      * 暂停游戏
      */
@@ -593,7 +668,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     // =====================================================================
     // 教程系统相关方法（完全独立）
     // =====================================================================
-
     /**
      * 初始化教程UI
      */
@@ -612,22 +686,34 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         if (tutorialOverlay != null) {
             System.out.println("GameActivity：教学点击监听器已设置");
             tutorialOverlay.setOnClickListener(v -> {
-                if (gameEngine != null && gameEngine.isTutorialLevel() && isShowingTutorial) {
-                    gameEngine.advanceTutorial();
-                    System.out.println("GameActivity：调用gameEngine.advanceTutorial方法");
+                System.out.println("GameActivity: 教程提示框被点击");
+                System.out.println("GameActivity: isShowingTutorial=" + isShowingTutorial + ", isShowingMessage=" + isShowingMessage);
+
+                // 确保游戏引擎已经初始化并且是教程关卡
+                if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    if (isShowingTutorial) {
+                        // 只有在显示教程消息时才推进教程
+                        System.out.println("GameActivity: 调用 advanceTutorial");
+                        gameEngine.advanceTutorial();
+                    } else if (isShowingMessage) {
+                        // 如果是普通消息，点击隐藏
+                        System.out.println("GameActivity: 隐藏普通消息");
+                        hideGameMessage();
+                    }
                 } else {
-                    // 如果不是教程消息，点击隐藏消息
-                    hideGameMessage();
+                    System.out.println("GameActivity: 条件不满足 - gameEngine=" + (gameEngine != null) +
+                            ", isTutorialLevel=" + (gameEngine != null && gameEngine.isTutorialLevel()));
                 }
             });
         }
     }
-
     /**
      * 显示教程提示 - 只由教程系统调用
      */
     private void showTutorialMessage(String title, String message, String hint) {
         runOnUiThread(() -> {
+            System.out.println("GameActivity: showTutorialMessage - " + title);
+
             isShowingTutorial = true;
             isShowingMessage = false; // 确保普通消息标志为false
 
@@ -636,7 +722,14 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 tutorialMessage.setText(message);
                 tutorialHint.setText(hint);
                 tutorialOverlay.setVisibility(View.VISIBLE);
+
+                // 确保教程提示框可以接收点击事件
+                tutorialOverlay.setClickable(true);
+                tutorialOverlay.setFocusable(true);
+
                 System.out.println("GameActivity: 教程消息已显示 - " + title);
+            } else {
+                System.err.println("GameActivity: 教程UI组件为null");
             }
         });
     }
@@ -950,7 +1043,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     @Override
     public void onTutorialStepStarted(GameEngine.TutorialState state, String message) {
-        System.out.println("GameActivity: 执行onTutorialStepStarted方法，状态=" + state);
+        System.out.println("GameActivity: onTutorialStepStarted 被调用，状态=" + state + ", 消息=" + message);
+
         runOnUiThread(() -> {
             currentTutorialState = state;
 
@@ -993,12 +1087,16 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
                 case COMPLETED:
                     // 教程完成时不显示消息
+                    System.out.println("GameActivity: 教程完成，隐藏教程消息");
                     hideTutorialMessage();
+                    break;
+
+                default:
+                    System.out.println("GameActivity: 未知教程状态: " + state);
                     break;
             }
         });
     }
-
     /**
      * 游戏失败回调
      */

@@ -8,7 +8,6 @@ import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.ecs.World;
 
-
 import java.util.List;
 
 /**
@@ -35,6 +34,15 @@ public class SpawnSystem extends ECSSystem {
     private boolean isWaveActive = false;
     private boolean isWaitingForNextWave = false;
     private boolean allWavesCompleted = false;
+
+    // 新增：为每个组维护独立的状态
+    private static class SpawnGroupState {
+        int currentEnemyCount = 0;
+        float timeSinceLastSpawn = 0;
+        boolean isCompleted = false;
+    }
+
+    private List<SpawnGroupState> currentWaveGroupStates = new java.util.ArrayList<>();
 
     // 添加LevelSystem引用
     private LevelSystem levelSystem;
@@ -112,6 +120,7 @@ public class SpawnSystem extends ECSSystem {
         // 执行当前波次的生成逻辑
         executeCurrentWave(deltaTime);
     }
+
     /**
      * 开始下一波敌人
      */
@@ -130,12 +139,15 @@ public class SpawnSystem extends ECSSystem {
             return;
         }
 
+        // 初始化每个组的状态
+        currentWaveGroupStates.clear();
+        for (int i = 0; i < currentWave.size(); i++) {
+            currentWaveGroupStates.add(new SpawnGroupState());
+        }
+
         isWaveActive = true;
         isWaitingForNextWave = false;
-        currentSpawnGroupIndex = 0;
-        currentEnemyInGroupCount = 0;
         timeSinceWaveStart = 0;
-        timeSinceLastSpawn = 0;
         timeSinceWaveCompleted = 0;
 
         System.out.println("SpawnSystem: 开始第 " + (currentWaveIndex + 1) + " 波敌人，包含 " +
@@ -143,49 +155,51 @@ public class SpawnSystem extends ECSSystem {
     }
 
     /**
-     * 执行当前波次的生成逻辑
+     * 执行当前波次的生成逻辑 - 优化后的版本
      */
     private void executeCurrentWave(float deltaTime) {
         LevelSystem.LevelWaveConfig waveConfig = levelSystem.getCurrentWaveConfig();
         List<LevelSystem.WaveConfig> currentWave = waveConfig.waves.get(currentWaveIndex);
 
         timeSinceWaveStart += deltaTime;
-        timeSinceLastSpawn += deltaTime;
 
-        // 遍历当前波次的所有生成组
-        while (currentSpawnGroupIndex < currentWave.size()) {
-            LevelSystem.WaveConfig group = currentWave.get(currentSpawnGroupIndex);
+        boolean allGroupsCompleted = true;
 
-            // 检查是否应该生成这个组的敌人
-            if (currentEnemyInGroupCount < group.count &&
-                    timeSinceLastSpawn >= group.delayBetweenSpawns) {
+        // 遍历所有组，独立更新每个组的生成状态
+        for (int i = 0; i < currentWave.size(); i++) {
+            LevelSystem.WaveConfig group = currentWave.get(i);
+            SpawnGroupState groupState = currentWaveGroupStates.get(i);
 
-                spawnEnemy(group.enemyType, group.pathTag);
-                currentEnemyInGroupCount++;
-                timeSinceLastSpawn = 0;
-
-                System.out.println("SpawnSystem: 生成 " + group.enemyType + " 在路径 " +
-                        group.pathTag + " (" + currentEnemyInGroupCount + "/" + group.count + ")");
-
-                // 如果这个组还有敌人要生成，等待下一次生成
-                if (currentEnemyInGroupCount < group.count) {
-                    return;
-                }
+            if (groupState.isCompleted) {
+                continue; // 这个组已经完成
             }
 
-            // 这个组的所有敌人都已生成，移动到下一个组
-            if (currentEnemyInGroupCount >= group.count) {
-                currentSpawnGroupIndex++;
-                currentEnemyInGroupCount = 0;
-                timeSinceLastSpawn = 0;
-            } else {
-                // 等待生成这个组的下一个敌人
-                return;
+            allGroupsCompleted = false; // 至少有一个组未完成
+
+            groupState.timeSinceLastSpawn += deltaTime;
+
+            // 检查是否应该生成敌人
+            if (groupState.currentEnemyCount < group.count &&
+                    groupState.timeSinceLastSpawn >= group.delayBetweenSpawns) {
+
+                spawnEnemy(group.enemyType, group.pathTag);
+                groupState.currentEnemyCount++;
+                groupState.timeSinceLastSpawn = 0;
+
+                System.out.println("SpawnSystem: 生成 " + group.enemyType + " 在路径 " +
+                        group.pathTag + " (" + groupState.currentEnemyCount + "/" + group.count + ")");
+
+                // 检查这个组是否完成
+                if (groupState.currentEnemyCount >= group.count) {
+                    groupState.isCompleted = true;
+                }
             }
         }
 
-        // 当前波次所有组都已完成
-        completeCurrentWave();
+        // 如果所有组都完成了，结束当前波次
+        if (allGroupsCompleted) {
+            completeCurrentWave();
+        }
     }
 
     /**
@@ -273,7 +287,6 @@ public class SpawnSystem extends ECSSystem {
         currentWaveIndex++;
     }
 
-
     /**
      * 重置系统状态
      */
@@ -289,6 +302,7 @@ public class SpawnSystem extends ECSSystem {
         this.allWavesCompleted = false;
         this.isActive = false;
         this.isReady = false;
+        this.currentWaveGroupStates.clear();
 
         System.out.println("SpawnSystem: 波次系统已完全重置");
     }
@@ -321,5 +335,11 @@ public class SpawnSystem extends ECSSystem {
 
         int totalWaves = waveConfig.waves.size();
         return "波次: " + (currentWaveIndex + 1) + "/" + totalWaves;
+    }
+    /**
+     * 获取系统激活状态
+     */
+    public boolean isActive() {
+        return isActive;
     }
 }

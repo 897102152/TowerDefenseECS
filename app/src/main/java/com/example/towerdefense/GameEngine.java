@@ -75,6 +75,7 @@ public class GameEngine {
     private TutorialState interruptedState = null;
     private String interruptedMessage = "";
 
+
     // =====================================================================
     // 接口定义
     // =====================================================================
@@ -169,10 +170,13 @@ public class GameEngine {
         enemiesReachedEnd = 0;
         isGameOver = false;
         isRunning = false;
+        isGameWon = false;
         System.out.println("GameEngine: 重置状态变量:\nGameEngine: enemiesReachedEnd = 0\nGameEngine: isGameOver = false\nGameEngine: isRunning = false");
+
         // 清除所有实体
         world.clearEntities();
         System.out.println("GameEngine: 所有实体已清除");
+
         // 重置资源管理器
         resourceManager.resetResources();
         System.out.println("GameEngine: 资源管理器已重置");
@@ -183,20 +187,17 @@ public class GameEngine {
         tutorialInterrupted = false;
         interruptedState = null;
         interruptedMessage = "";
+
+        // 清除教程Handler的延迟任务
+        if (tutorialHandler != null) {
+            tutorialHandler.removeCallbacksAndMessages(null);
+        }
+
         System.out.println("GameEngine: 重置教程状态变量:\nGameEngine: tutorialState = WELCOME\nGameEngine: towersBuilt = 0\nGameEngine: tutorialInterrupted = false;\nGameEngine: interruptedState = null\nGameEngine: interruptedMessage = ");
+
         if (spawnSystem != null) {
             spawnSystem.reset();
             System.out.println("GameEngine: spawnSystem已重置");
-
-            // 如果不是教程关卡，立即激活生成
-            if (!isTutorialLevel) {
-                spawnSystem.startSpawning();
-                System.out.println("GameEngine: spawnSystem已重置，自动生成敌人");
-            }
-            else {
-                spawnSystem.setActive(false); // 教程关卡初始不激活
-                System.out.println("GameEngine: 教程关卡，spawnSystem初始不激活");
-            }
         }
     }
 
@@ -263,17 +264,13 @@ public class GameEngine {
         }
         // 重置SpawnSystem状态
         spawnSystem.reset();
-        // 如果是教程关卡，确保生成系统不立即开始
-        if (isTutorialLevel) {
-            spawnSystem.setActive(false);
-            System.out.println("GameEngine: 教程关卡，SpawnSystem设置为非激活状态");
-        } else {
-            spawnSystem.setActive(true);
-            System.out.println("GameEngine: 普通关卡，SpawnSystem设置为激活状态");
-        }
+
+        // 所有关卡初始都不激活生成，等待手动激活
+        spawnSystem.setActive(false);
+        System.out.println("GameEngine: 所有关卡初始都不激活敌人生成，等待手动开始");
+
         System.out.println("GameEngine: 系统初始化完成");
     }
-
     // =====================================================================
     // 游戏循环控制
     // =====================================================================
@@ -428,7 +425,23 @@ public class GameEngine {
     // =====================================================================
     // 敌人事件处理
     // =====================================================================
+    /**
+     * 启用敌人生成 - 供开始按钮调用
+     */
+    public void enableEnemySpawning() {
+        if (spawnSystem != null && !spawnSystem.isActive()) {
+            spawnSystem.setActive(true);
+            spawnSystem.startSpawning();
+            System.out.println("GameEngine: 敌人生成已启用并开始生成");
+        }
+    }
 
+    /**
+     * 检查敌人生成是否激活
+     */
+    public boolean isEnemySpawningEnabled() {
+        return spawnSystem != null && spawnSystem.isActive();
+    }
     /**
      * 敌人被击败时调用（由AttackSystem调用）
      */
@@ -494,44 +507,59 @@ public class GameEngine {
             }
         }, 500);
     }
-
     /**
      * 推进教程到下一步
      */
     public void advanceTutorial() {
         if (!isTutorialLevel) return;
 
+        System.out.println("GameEngine: advanceTutorial 被调用，当前状态: " + tutorialState);
+
         switch (tutorialState) {
             case WELCOME:
                 tutorialState = TutorialState.RESOURCE_EXPLANATION;
-                showTutorialMessage("资源系统说明", "人力用于建造防御塔，补给通过击败敌人获得。点击继续");
+                System.out.println("GameEngine: 教程状态推进到 RESOURCE_EXPLANATION");
+                // 通过监听器更新UI
+                if (updateListener != null) {
+                    updateListener.onTutorialStepStarted(tutorialState, "资源系统说明");
+                }
                 break;
 
             case RESOURCE_EXPLANATION:
                 tutorialState = TutorialState.BUILD_ARCHER_TOWER;
-                showTutorialMessage("建造弓箭塔", "请点击建造按钮，选择弓箭塔并在指定位置建造");
+                System.out.println("GameEngine: 教程状态推进到 BUILD_ARCHER_TOWER");
+                if (updateListener != null) {
+                    updateListener.onTutorialStepStarted(tutorialState, "请建造弓箭塔");
+                }
                 break;
 
             case BUILD_ARCHER_TOWER:
                 // 等待玩家建造弓箭塔，这里不自动推进
+                System.out.println("GameEngine: BUILD_ARCHER_TOWER 状态，等待玩家建造");
                 break;
 
             case BUILD_CANNON_TOWER:
                 // 等待玩家建造炮塔
+                System.out.println("GameEngine: BUILD_CANNON_TOWER 状态，等待玩家建造");
                 break;
 
             case BUILD_MAGE_TOWER:
                 // 等待玩家建造法师塔
+                System.out.println("GameEngine: BUILD_MAGE_TOWER 状态，等待玩家建造");
                 break;
 
             case WAITING_FOR_ENEMIES:
                 // 等待敌人生成
+                System.out.println("GameEngine: WAITING_FOR_ENEMIES 状态");
                 break;
 
             case COMPLETED:
                 // 教程完成
+                System.out.println("GameEngine: 教程已完成");
                 break;
         }
+
+        System.out.println("GameEngine: advanceTutorial 完成，新状态: " + tutorialState);
     }
 
     /**
@@ -589,12 +617,12 @@ public class GameEngine {
 
                     // 延迟生成敌人
                     tutorialHandler.postDelayed(() -> {
-                        spawnSystem.startSpawning();
+                        enableEnemySpawning(); // 使用统一的方法启用敌人生成
                         tutorialState = TutorialState.COMPLETED;
                         if (updateListener != null) {
                             updateListener.onTutorialStepStarted(tutorialState, "教程完成！敌人开始出现");
                         }
-                    }, 3000);
+                    }, 2000);
                 } else {
                     String errorMessage = "教程错误：请建造法师塔而不是" + getTowerTypeName(towerType);
                     System.out.println("GameEngine: " + errorMessage);
@@ -1077,6 +1105,13 @@ public class GameEngine {
 
     public Entity getPathEntity(Path.PathTag pathTag) {
         return null;
+    }
+
+    /**
+     * 获取敌人生成系统
+     */
+    public SpawnSystem getSpawnSystem() {
+        return spawnSystem;
     }
 
     /**
