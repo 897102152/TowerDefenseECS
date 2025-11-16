@@ -744,17 +744,28 @@ public class GameView extends View {
         this.gameEngine = gameEngine;
     }
 
+    /**
+     * 设置选中塔类型
+     */
     public void setSelectedTowerType(Tower.Type towerType) {
         this.selectedTowerType = towerType;
         this.isRemoveMode = false;
+
+        // 通知Activity更新按钮高亮状态
+        if (gameViewListener != null) {
+            // 这里可以通过回调通知Activity哪个按钮应该被高亮
+            // 但由于我们已经在Activity中处理了按钮点击，所以这里不需要额外处理
+        }
         invalidate();
     }
 
+    /**
+     * 设置移除模式
+     */
     public void setRemoveMode(boolean removeMode) {
         this.isRemoveMode = removeMode;
         if (removeMode) {
             this.selectedTowerType = null;
-            System.out.println("GameView: 进入移除模式");
         }
         invalidate();
     }

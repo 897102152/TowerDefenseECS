@@ -56,6 +56,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     // ========== 对话框 ==========
     private AlertDialog pauseDialog;
     private OnBackPressedCallback onBackPressedCallback;
+    // ========== 建造模式按钮高亮状态 ==========
+    private View currentSelectedButton = null;
+    private int defaultButtonColor = Color.GRAY;
+    private int selectedButtonColor = Color.BLUE;
 
     // =====================================================================
     // Activity生命周期方法
@@ -247,25 +251,33 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // ========== 建造菜单中的塔选择按钮 ==========
         // 弓箭塔选择按钮
-        findViewById(R.id.btnArcherTower).setOnClickListener(v -> {
+        View btnArcherTower = findViewById(R.id.btnArcherTower);
+        btnArcherTower.setOnClickListener(v -> {
             gameView.setSelectedTowerType(Tower.Type.ARCHER);
+            setButtonSelected(btnArcherTower);
         });
 
         // 炮塔选择按钮
-        findViewById(R.id.btnCannonTower).setOnClickListener(v -> {
+        View btnCannonTower = findViewById(R.id.btnCannonTower);
+        btnCannonTower.setOnClickListener(v -> {
             gameView.setSelectedTowerType(Tower.Type.CANNON);
+            setButtonSelected(btnCannonTower);
         });
 
         // 法师塔选择按钮
-        findViewById(R.id.btnMageTower).setOnClickListener(v -> {
+        View btnMageTower = findViewById(R.id.btnMageTower);
+        btnMageTower.setOnClickListener(v -> {
             gameView.setSelectedTowerType(Tower.Type.MAGE);
+            setButtonSelected(btnMageTower);
         });
 
         // 移除按钮 - 新增移除功能
-        findViewById(R.id.btnBuildRemove).setOnClickListener(v -> {
+        View btnBuildRemove = findViewById(R.id.btnBuildRemove);
+        btnBuildRemove.setOnClickListener(v -> {
             if (gameView.isRemoveMode()) {
                 // 如果已经在移除模式，则退出移除模式
                 gameView.setRemoveMode(false);
+                clearButtonSelection();
                 // 只在教程关卡显示消息
                 if (gameEngine != null && gameEngine.isTutorialLevel()) {
                     displayGameMessage("移除模式", "退出移除模式", "现在可以建造防御塔", true);
@@ -273,6 +285,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             } else {
                 // 进入移除模式
                 gameView.setRemoveMode(true);
+                setButtonSelected(btnBuildRemove);
                 // 只在教程关卡显示消息
                 if (gameEngine != null && gameEngine.isTutorialLevel()) {
                     displayGameMessage("移除模式", "移除模式开启", "点击防御塔可移除", true);
@@ -399,6 +412,46 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     // =====================================================================
     // 建造模式相关方法
     // =====================================================================
+    /**
+     * 设置按钮选中状态
+     */
+    private void setButtonSelected(View button) {
+        // 清除之前选中的按钮状态
+        clearButtonSelection();
+
+        // 设置新按钮为选中状态
+        currentSelectedButton = button;
+        button.setBackgroundColor(selectedButtonColor);
+
+        // 如果是移除按钮，需要特殊处理
+        if (button.getId() == R.id.btnBuildRemove) {
+            // 移除模式已经在上层处理中设置
+        } else {
+            // 确保退出移除模式
+            gameView.setRemoveMode(false);
+        }
+    }
+
+    /**
+     * 清除按钮选中状态
+     */
+    private void clearButtonSelection() {
+        if (currentSelectedButton != null) {
+            currentSelectedButton.setBackgroundColor(defaultButtonColor);
+            currentSelectedButton = null;
+        }
+
+        // 重置所有建造按钮的默认颜色
+        View btnArcherTower = findViewById(R.id.btnArcherTower);
+        View btnCannonTower = findViewById(R.id.btnCannonTower);
+        View btnMageTower = findViewById(R.id.btnMageTower);
+        View btnBuildRemove = findViewById(R.id.btnBuildRemove);
+
+        if (btnArcherTower != null) btnArcherTower.setBackgroundColor(defaultButtonColor);
+        if (btnCannonTower != null) btnCannonTower.setBackgroundColor(defaultButtonColor);
+        if (btnMageTower != null) btnMageTower.setBackgroundColor(defaultButtonColor);
+        if (btnBuildRemove != null) btnBuildRemove.setBackgroundColor(defaultButtonColor);
+    }
 
     /**
      * 设置建造模式状态
@@ -417,23 +470,16 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             buildMenuLayout.setVisibility(buildMode ? View.VISIBLE : View.GONE);
         }
 
-        // 更新建造模式按钮的文本或状态
-        updateBuildModeButton(buildMode);
-    }
-
-    /**
-     * 更新建造模式按钮状态
-     */
-    private void updateBuildModeButton(boolean buildMode) {
-        View buildButton = findViewById(R.id.btnBuildMode);
-        if (buildButton instanceof android.widget.Button) {
-            android.widget.Button button = (android.widget.Button) buildButton;
-            if (buildMode) {
-                button.setText("退出建造模式");
-                button.setBackgroundColor(Color.RED);
-            } else {
-                button.setText("进入建造模式");
-                button.setBackgroundColor(Color.GREEN);
+        // 如果关闭建造模式，清除所有按钮选中状态
+        if (!buildMode) {
+            clearButtonSelection();
+            gameView.setRemoveMode(false);
+        } else {
+            // 如果开启建造模式，默认选中第一个按钮（弓箭塔）
+            View btnArcherTower = findViewById(R.id.btnArcherTower);
+            if (btnArcherTower != null) {
+                setButtonSelected(btnArcherTower);
+                gameView.setSelectedTowerType(Tower.Type.ARCHER);
             }
         }
     }
@@ -451,7 +497,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             displayGameMessage("建造模式", message, isBuildMode ? "现在可以放置防御塔" : "建造功能已禁用", true);
         }
     }
-
     // =====================================================================
     // 暂停菜单相关方法
     // =====================================================================
