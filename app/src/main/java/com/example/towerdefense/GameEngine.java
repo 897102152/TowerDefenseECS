@@ -78,6 +78,12 @@ public class GameEngine {
     private float[] highlandArea = new float[]{0.25f, 0.35f, 0.55f, 0.9f}; // 左上x, 左上y, 右下x, 右下y
     private float[] highlandScreenRect = new float[4]; // 屏幕坐标下的高地矩形
     private float highlandSpeedMultiplier = 0.8f; // 高地内移速降至80%
+    // 新增：高地争夺机制
+    private int highlandEnemyThreshold = 5; // 高地失守的敌人数量阈值
+    private int currentHighlandEnemies = 0; // 当前高地区域内的敌人数量
+    private boolean isHighlandControlled = true; // 高地是否由玩家控制（初始为控制状态）
+    private long lastHighlandCheckTime = 0; // 上次检查高地状态的时间
+    private static final long HIGHLAND_CHECK_INTERVAL = 500; // 检查间隔（毫秒）
 
     // =====================================================================
     // 接口定义
@@ -90,6 +96,9 @@ public class GameEngine {
         void onTutorialStepStarted(TutorialState state, String message);
         void onGameOver(); // 新增：游戏失败回调
         void onGameWon();
+        // 新增：高地状态变化回调
+        void onHighlandStatusChanged(boolean isControlled, int enemyCount);
+        void onHighlandEnemyCountUpdated(int enemyCount);
     }
 
     // =====================================================================
@@ -204,9 +213,6 @@ public class GameEngine {
         }
     }
 
-    /**
-     * 设置关卡
-     */
     private void setupLevel(int levelId) {
         System.out.println("GameEngine: 设置关卡 " + levelId);
 
@@ -221,7 +227,11 @@ public class GameEngine {
             maxEnemiesAllowed = 10;
             // 只在第一关设置高地区域
             highlandArea = new float[]{0.25f, 0.35f, 0.55f, 0.9f}; // 左上x, 左上y, 右下x, 右下y
-            System.out.println("GameEngine: 第一关 - 启用高地区域减速效果");
+            // 重置高地状态
+            currentHighlandEnemies = 0;
+            isHighlandControlled = true;
+            lastHighlandCheckTime = 0;
+            System.out.println("GameEngine: 第一关 - 启用高地区域争夺机制");
         } else {
             maxEnemiesAllowed = 10; // 其他关卡默认值
             highlandArea = null; // 其他关卡没有高地
@@ -305,6 +315,14 @@ public class GameEngine {
     private void updateGame() {
         try {
             world.update(0.016f);
+
+            // 检查高地状态（每500毫秒检查一次）
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastHighlandCheckTime >= HIGHLAND_CHECK_INTERVAL) {
+                updateHighlandStatus();
+                lastHighlandCheckTime = currentTime;
+            }
+
             // 检查胜利条件
             checkWinCondition();
             if (updateListener != null) {
@@ -314,6 +332,7 @@ public class GameEngine {
             e.printStackTrace();
         }
     }
+
 
     /**
      * 暂停游戏
@@ -870,6 +889,69 @@ public class GameEngine {
     public boolean hasHighlandArea() {
         return highlandArea != null;
     }
+    /**
+     * 更新高地区域状态
+     */
+    private void updateHighlandStatus() {
+        if (!hasHighlandArea()) return;
+
+        // 统计高地区域内的敌人数量
+        int previousCount = currentHighlandEnemies;
+        currentHighlandEnemies = countEnemiesInHighland();
+
+        // 检查是否需要更新高地控制状态
+        boolean previousControlState = isHighlandControlled;
+
+        if (currentHighlandEnemies > highlandEnemyThreshold) {
+            // 敌人数量超过阈值，高地失守
+            if (isHighlandControlled) {
+                isHighlandControlled = false;
+                System.out.println("GameEngine: 高地失守！敌人数量: " + currentHighlandEnemies);
+
+                // 通知UI更新
+                if (updateListener != null) {
+                    updateListener.onHighlandStatusChanged(false, currentHighlandEnemies);
+                }
+            }
+        } else {
+            // 敌人数量低于阈值，高地恢复控制
+            if (!isHighlandControlled) {
+                isHighlandControlled = true;
+                System.out.println("GameEngine: 高地重新控制！敌人数量: " + currentHighlandEnemies);
+
+                // 通知UI更新
+                if (updateListener != null) {
+                    updateListener.onHighlandStatusChanged(true, currentHighlandEnemies);
+                }
+            }
+        }
+
+        // 如果敌人数量变化但控制状态未变，也通知UI更新显示
+        if (previousCount != currentHighlandEnemies && previousControlState == isHighlandControlled) {
+            if (updateListener != null) {
+                updateListener.onHighlandEnemyCountUpdated(currentHighlandEnemies);
+            }
+        }
+    }
+    /**
+     * 统计高地区域内的敌人数量
+     */
+    private int countEnemiesInHighland() {
+        if (!hasHighlandArea()) return 0;
+
+        int count = 0;
+        List<Entity> enemies = world.getEntitiesWithComponent(Enemy.class);
+
+        for (Entity enemy : enemies) {
+            Transform transform = enemy.getComponent(Transform.class);
+            if (transform != null && isInHighlandArea(transform.x, transform.y)) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     // =====================================================================
     // 系统状态检查和调试
     // =====================================================================
@@ -1245,5 +1327,26 @@ public class GameEngine {
 
     public boolean isGameOver() {
         return isGameOver;
+    }
+    // 添加高地状态相关的getter方法：
+    /**
+     * 获取高地控制状态
+     */
+    public boolean isHighlandControlled() {
+        return isHighlandControlled;
+    }
+
+    /**
+     * 获取当前高地区域内的敌人数量
+     */
+    public int getHighlandEnemyCount() {
+        return currentHighlandEnemies;
+    }
+
+    /**
+     * 获取高地敌人数量阈值
+     */
+    public int getHighlandEnemyThreshold() {
+        return highlandEnemyThreshold;
     }
 }

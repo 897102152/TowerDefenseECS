@@ -676,16 +676,33 @@ public class GameView extends View {
         canvas.drawText("网格: " + gridSize + "px", 10, getHeight() - 50, paint);
     }
     /**
-     * 绘制高地区域边框 - 只在第一关显示
+     * 绘制高地区域边框 - 只在第一关显示，根据控制状态改变颜色
      */
     private void drawHighlandArea(Canvas canvas) {
-        if (gameEngine == null || !gameEngine.hasHighlandArea()) return;
+        // 双重检查：确保游戏引擎存在且有高地区域
+        if (gameEngine == null || !gameEngine.hasHighlandArea()) {
+            return;
+        }
 
         float[] highlandRect = gameEngine.getHighlandScreenRect();
-        if (highlandRect == null || highlandRect.length < 4) return;
+        if (highlandRect == null || highlandRect.length < 4) {
+            return;
+        }
 
-        // 设置红色细点划线样式
-        paint.setColor(Color.RED);
+        // 根据高地控制状态设置颜色
+        int borderColor;
+        String statusText;
+
+        if (gameEngine.isHighlandControlled()) {
+            borderColor = Color.BLUE; // 玩家控制时为蓝色
+            statusText = "高地控制中 - 敌人减速";
+        } else {
+            borderColor = Color.RED; // 失守时为红色
+            statusText = "高地失守 - 无减速效果";
+        }
+
+        // 设置点划线样式
+        paint.setColor(borderColor);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(2f);
 
@@ -706,10 +723,16 @@ public class GameView extends View {
         paint.setPathEffect(null);
         paint.setStyle(Paint.Style.FILL);
 
-        // 可选：绘制高地标签
-        paint.setColor(Color.RED);
+        // 绘制高地状态文字
+        paint.setColor(borderColor);
         paint.setTextSize(20f);
-        canvas.drawText("高地 - 移速降低20%", left + 10, top - 10, paint);
+        canvas.drawText(statusText, left + 10, top - 15, paint);
+
+        // 绘制敌人数量信息
+        int enemyCount = gameEngine.getHighlandEnemyCount();
+        int threshold = gameEngine.getHighlandEnemyThreshold();
+        String countText = "敌人: " + enemyCount + "/" + threshold;
+        canvas.drawText(countText, left + 10, top - 35, paint);
     }
     // =====================================================================
     // 辅助绘制方法

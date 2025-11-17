@@ -136,7 +136,33 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             hideSystemUI();
         }
     }
+    //================level Highland相关回调=======================================
+    /**
+     * 高地状态变化回调
+     */
+    @Override
+    public void onHighlandStatusChanged(boolean isControlled, int enemyCount) {
+        runOnUiThread(() -> {
+            String status = isControlled ? "已控制" : "已失守";
+            String message = "高地区域" + status + "！当前敌人数量: " + enemyCount;
 
+            // 只在第一关显示高地状态消息
+            if (currentLevelId == 1) {
+                displayGameMessage("高地状态", message, "敌人数量决定高地控制权", true);
+            }
+
+            System.out.println("GameActivity: " + message);
+        });
+    }
+
+    /**
+     * 高地敌人数量更新回调
+     */
+    @Override
+    public void onHighlandEnemyCountUpdated(int enemyCount) {
+        // 不需要特殊处理，UI会在下次绘制时更新
+        System.out.println("GameActivity: 高地区域敌人数量更新: " + enemyCount);
+    }
     // =====================================================================
     // 游戏初始化相关方法
     // =====================================================================

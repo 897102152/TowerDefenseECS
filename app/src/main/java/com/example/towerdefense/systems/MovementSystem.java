@@ -72,8 +72,8 @@ public class MovementSystem extends ECSSystem {
             return;
         }
 
-        // 只在有高地区域的关卡应用减速效果
-        if (gameEngine != null && gameEngine.hasHighlandArea()) {
+        // 只在有高地区域且高地由玩家控制时应用减速效果
+        if (gameEngine != null && gameEngine.hasHighlandArea() && gameEngine.isHighlandControlled()) {
             // 检查敌人是否在高地区域内
             boolean wasInHighland = enemyComp.isInHighland;
             boolean isNowInHighland = gameEngine.isInHighlandArea(transform.x, transform.y);
@@ -90,6 +90,12 @@ public class MovementSystem extends ECSSystem {
                     enemyComp.speed = enemyComp.originalSpeed;
                     System.out.println("MovementSystem: 敌人离开高地，速度恢复至 " + enemyComp.speed);
                 }
+            }
+        } else {
+            // 如果高地失守或者没有高地区域，确保敌人速度正常
+            if (enemyComp.isInHighland) {
+                enemyComp.isInHighland = false;
+                enemyComp.speed = enemyComp.originalSpeed;
             }
         }
 
