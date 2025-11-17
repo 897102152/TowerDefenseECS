@@ -56,7 +56,7 @@ public class Tower implements Component {
      * @param range 攻击范围，塔的有效攻击距离
      * @param attackSpeed 攻击速度，每秒攻击次数
      */
-    public Tower(Type type, int damage, float range, float attackSpeed, int manpowerCost, int supplyCost) {
+    public Tower(Type type, int damage, float range, float attackSpeed, int manpowerCost, int supplyCost, float innerRange) {
         this.type = type;
         this.damage = damage;
         this.range = range;
@@ -64,7 +64,7 @@ public class Tower implements Component {
         this.lastAttackTime = 0; // 初始化为0，表示可以立即攻击
         this.manpowerCost = manpowerCost;
         this.supplyCost = supplyCost;
-
+        this.innerRange = innerRange;
 
     }
     public int getManpowerCost() { return manpowerCost; }
@@ -122,7 +122,7 @@ public class Tower implements Component {
     public void setLastAttackTime(long lastAttackTime) {
         this.lastAttackTime = lastAttackTime;
     }
-
+    public float innerRange; // 法师塔的内圈范围，其他塔为0
     // ========== 业务逻辑方法 ==========
 
     /**
@@ -135,5 +135,9 @@ public class Tower implements Component {
         long attackInterval = (long)(1000 / attackSpeed);
         // 检查距离上次攻击是否已经过了足够的冷却时间
         return currentTime - lastAttackTime >= attackInterval;
+    }
+    //=================Getter方法=======================
+    public float getInnerRange() {
+        return innerRange;
     }
 }

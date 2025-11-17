@@ -1012,27 +1012,46 @@ public class GameEngine {
 
         int damage = 0;
         float range = 0;
+        float innerRange = 0; // 新增：法师塔的内圈范围
         float attackSpeed = 0;
+
+        // 使用与GameView完全一致的方式计算网格大小
+        int gridSize = 60; // 默认值
+        if (screenWidth > 0) {
+            gridSize = (int) (screenWidth * 0.08f);
+            gridSize = Math.max(30, Math.min(gridSize, 100));
+        }
+
+        System.out.println("GameEngine: 计算网格大小: " + gridSize + "px (屏幕宽度: " + screenWidth + "px)");
 
         switch (type) {
             case ARCHER:
+                // 弓箭塔：2格半径，5x5格子的内切圆
                 damage = 10;
-                range = 150;
+                range = 4 * gridSize; // 2格半径
                 attackSpeed = 1.0f;
+                System.out.println("GameEngine: 弓箭塔攻击范围: " + range + "px (2格半径)");
                 break;
             case CANNON:
+                // 炮塔：1格半径，3x3格子的内切圆
                 damage = 25;
-                range = 120;
+                range = 2 * gridSize; // 1格半径
                 attackSpeed = 0.5f;
+                System.out.println("GameEngine: 炮塔攻击范围: " + range + "px (1格半径)");
                 break;
             case MAGE:
+                // 法师塔：圆环攻击范围，内圈1.5格，外圈3格
                 damage = 15;
-                range = 180;
+                innerRange = 3f * gridSize; // 内圈半径（1.5格）
+                range = 6 * gridSize; // 外圈半径（3格）
                 attackSpeed = 0.8f;
+                System.out.println("GameEngine: 法师塔攻击范围: 内圈" + innerRange + "px, 外圈" + range + "px");
                 break;
         }
 
-        tower.addComponent(new Tower(type, damage, range, attackSpeed, manpowerCost, supplyCost));
+        // 创建防御塔组件
+        Tower towerComponent = new Tower(type, damage, range, attackSpeed, manpowerCost, supplyCost, innerRange);
+        tower.addComponent(towerComponent);
     }
 
     /**

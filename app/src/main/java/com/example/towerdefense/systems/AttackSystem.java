@@ -87,13 +87,21 @@ public class AttackSystem extends ECSSystem {
         for (Entity enemy : enemies) {
             Transform enemyTransform = enemy.getComponent(Transform.class);
 
-            // 手动计算距离（替换原来的 distanceTo 方法调用）
+            // 手动计算距离
             float dx = towerTransform.x - enemyTransform.x;
             float dy = towerTransform.y - enemyTransform.y;
             float distance = (float) Math.sqrt(dx * dx + dy * dy);
 
-            if (distance <= tower.range) {
-                return enemy;
+            if (tower.getType() == Tower.Type.MAGE) {
+                // 法师塔：目标必须在圆环范围内（大于内圈且小于外圈）
+                if (distance > tower.innerRange && distance <= tower.range) {
+                    return enemy;
+                }
+            } else {
+                // 其他塔：目标在圆形范围内
+                if (distance <= tower.range) {
+                    return enemy;
+                }
             }
         }
         return null;
@@ -108,6 +116,30 @@ public class AttackSystem extends ECSSystem {
     private void createProjectile(Entity tower, Entity target, int damage) {
         // 获取防御塔的位置，作为弹道的起始位置
         Transform towerTransform = tower.getComponent(Transform.class);
+        Tower towerComp = tower.getComponent(Tower.class);
+
+        // 根据防御塔类型设置不同的弹道速度
+        float baseSpeed = 200f; // 基准速度
+        float projectileSpeed = baseSpeed;
+
+        if (towerComp != null) {
+            switch (towerComp.type) {
+                case ARCHER:
+                    // 弓箭塔：基准速度 × 1.25倍
+                    projectileSpeed = baseSpeed * 1.25f;
+                    break;
+                case CANNON:
+                    // 炮塔：基准速度 × 0.5倍
+                    projectileSpeed = baseSpeed * 0.5f;
+                    break;
+                case MAGE:
+                    // 法师塔：基准速度 × 0.75倍
+                    projectileSpeed = baseSpeed * 0.75f;
+                    break;
+            }
+
+            System.out.println("AttackSystem: " + towerComp.type + "塔发射弹道，速度: " + projectileSpeed);
+        }
 
         // 创建新的弹道实体
         Entity projectile = world.createEntity();
@@ -115,7 +147,7 @@ public class AttackSystem extends ECSSystem {
         // 添加位置组件，设置在防御塔的位置
         projectile.addComponent(new Transform(towerTransform.x, towerTransform.y));
 
-        // 添加弹道组件，包含目标、伤害和移动速度
-        projectile.addComponent(new Projectile(target, damage, 200f)); // 200f 是弹道移动速度
+        // 添加弹道组件，包含目标、伤害和计算后的移动速度
+        projectile.addComponent(new Projectile(target, damage, projectileSpeed));
     }
 }

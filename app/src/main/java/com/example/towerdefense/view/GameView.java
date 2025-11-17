@@ -497,7 +497,7 @@ public class GameView extends View {
             } else {
                 drawFallbackTower(canvas, transform, towerComp.type);
             }
-        }catch(Exception e){
+        } catch(Exception e){
             System.err.println("GameView: 绘制防御塔时发生异常: " + e.getMessage());
             // 使用备用绘制方案
             drawFallbackTower(canvas, transform, towerComp.type);
@@ -505,8 +505,26 @@ public class GameView extends View {
 
         // 绘制攻击范围
         if (towerComp != null) {
-            paint.setColor(Color.argb(30, 255, 255, 255));
-            canvas.drawCircle(transform.x, transform.y, towerComp.range, paint);
+            if (towerComp.type == Tower.Type.MAGE) {
+                // 法师塔：只绘制圆环区域（外圈减去内圈）
+                paint.setColor(Color.argb(50, 255, 255, 255)); // 蓝色圆环
+
+                // 使用Path绘制圆环
+                android.graphics.Path path = new android.graphics.Path();
+                path.setFillType(android.graphics.Path.FillType.EVEN_ODD);
+
+                // 外圈圆形
+                path.addCircle(transform.x, transform.y, towerComp.range, android.graphics.Path.Direction.CW);
+                // 内圈圆形（会被从外圈中减去）
+                path.addCircle(transform.x, transform.y, towerComp.innerRange, android.graphics.Path.Direction.CCW);
+
+                canvas.drawPath(path, paint);
+
+            } else {
+                // 其他塔：绘制圆形范围
+                paint.setColor(Color.argb(50, 255, 255, 255));
+                canvas.drawCircle(transform.x, transform.y, towerComp.range, paint);
+            }
         }
     }
 
@@ -527,7 +545,21 @@ public class GameView extends View {
      * 绘制抛射体
      */
     private void drawProjectile(Canvas canvas, Entity projectile, Transform transform) {
-        paint.setColor(Color.WHITE);
+        Projectile projectileComp = projectile.getComponent(Projectile.class);
+
+        if (projectileComp != null) {
+            // 根据速度设置不同颜色（可选，便于区分）
+            if (projectileComp.speed > 220f) { // 弓箭塔速度 > 200*1.1
+                paint.setColor(Color.GREEN); // 绿色 - 弓箭塔
+            } else if (projectileComp.speed < 100f) { // 炮塔速度 < 200*0.55
+                paint.setColor(Color.RED); // 红色 - 炮塔
+            } else {
+                paint.setColor(Color.BLUE); // 蓝色 - 法师塔
+            }
+        } else {
+            paint.setColor(Color.WHITE); // 默认白色
+        }
+
         canvas.drawCircle(transform.x, transform.y, 5f, paint);
     }
 
