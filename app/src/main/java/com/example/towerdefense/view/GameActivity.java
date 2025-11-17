@@ -6,7 +6,6 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
@@ -176,7 +175,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         if (gameEngine != null && gameEngine.isTutorialLevel()) {
             displayGameMessage("伤害类型",
                     "击败" + getEnemyTypeName(enemy.type) + "，" + damageInfo,
-                    "不同敌人对不同类型的防御塔有不同抗性", true);
+                    "不同敌人对不同类型的伤害有不同抗性", true);
         }
     }
 
@@ -185,12 +184,12 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     private String getDamageTypeInfo(Enemy.Type enemyType) {
         switch (enemyType) {
-            case GOBLIN:
-                return "受到所有类型伤害+25%";
-            case ORC:
-                return "受到标准伤害";
-            case TROLL:
-                return "对弓箭伤害-50%，对炮击和魔法伤害+25%";
+            case Vehicle:
+                return "轻装机动步兵比普通步兵更脆弱";
+            case Infantry:
+                return "步兵受到伤害数值无修正";
+            case Armour:
+                return "装甲车辆对子弹伤害有抗性";
             default:
                 return "未知伤害类型";
         }
@@ -201,9 +200,9 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     private String getEnemyTypeName(Enemy.Type enemyType) {
         switch (enemyType) {
-            case GOBLIN: return "哥布林";
-            case ORC: return "兽人";
-            case TROLL: return "巨魔";
+            case Vehicle: return "摩托步兵";
+            case Infantry: return "步兵";
+            case Armour: return "坦克";
             default: return "未知敌人";
         }
     }
@@ -366,21 +365,21 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 弓箭塔选择按钮
         View btnArcherTower = findViewById(R.id.btnArcherTower);
         btnArcherTower.setOnClickListener(v -> {
-            gameView.setSelectedTowerType(Tower.Type.ARCHER);
+            gameView.setSelectedTowerType(Tower.Type.Infantry);
             setButtonSelected(btnArcherTower);
         });
 
         // 炮塔选择按钮
         View btnCannonTower = findViewById(R.id.btnCannonTower);
         btnCannonTower.setOnClickListener(v -> {
-            gameView.setSelectedTowerType(Tower.Type.CANNON);
+            gameView.setSelectedTowerType(Tower.Type.Anti_tank);
             setButtonSelected(btnCannonTower);
         });
 
         // 法师塔选择按钮
         View btnMageTower = findViewById(R.id.btnMageTower);
         btnMageTower.setOnClickListener(v -> {
-            gameView.setSelectedTowerType(Tower.Type.MAGE);
+            gameView.setSelectedTowerType(Tower.Type.Artillery);
             setButtonSelected(btnMageTower);
         });
 
@@ -393,7 +392,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 clearButtonSelection();
                 // 只在教程关卡显示消息
                 if (gameEngine != null && gameEngine.isTutorialLevel()) {
-                    displayGameMessage("移除模式", "退出移除模式", "现在可以建造防御塔", true);
+                    displayGameMessage("移除模式", "退出移除模式", "现在可以部署兵力", true);
                 }
             } else {
                 // 进入移除模式
@@ -401,7 +400,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 setButtonSelected(btnBuildRemove);
                 // 只在教程关卡显示消息
                 if (gameEngine != null && gameEngine.isTutorialLevel()) {
-                    displayGameMessage("移除模式", "移除模式开启", "点击防御塔可移除", true);
+                    displayGameMessage("移除模式", "移除模式开启", "点击兵团可以取消部署", true);
                 }
             }
         });
@@ -624,7 +623,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             View btnArcherTower = findViewById(R.id.btnArcherTower);
             if (btnArcherTower != null) {
                 setButtonSelected(btnArcherTower);
-                gameView.setSelectedTowerType(Tower.Type.ARCHER);
+                gameView.setSelectedTowerType(Tower.Type.Infantry);
             }
         }
     }
@@ -638,8 +637,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 只在教程关卡显示消息
         if (gameEngine != null && gameEngine.isTutorialLevel()) {
-            String message = isBuildMode ? "建造模式开启" : "建造模式关闭";
-            displayGameMessage("建造模式", message, isBuildMode ? "现在可以放置防御塔" : "建造功能已禁用", true);
+            String message = isBuildMode ? "部署模式开启" : "部署模式关闭";
+            displayGameMessage("部署模式", message, isBuildMode ? "现在可以部署士兵" : "部署功能已关闭", true);
         }
     }
     // =====================================================================
@@ -1112,7 +1111,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             switch (state) {
                 case WELCOME:
                     showTutorialMessage("欢迎进入教程关",
-                            "游戏目标：建造防御塔阻止敌人到达终点\n每个敌人到达终点会扣除生命值",
+                            "游戏目标：部署兵力阻止敌人到达终点\n每个敌人到达终点会扣除生命值",
                             "点击屏幕继续");
                     break;
 
@@ -1122,27 +1121,27 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                             "点击屏幕继续");
                     break;
 
-                case BUILD_ARCHER_TOWER:
+                case DEPLOY_INFANTRY:
                     showTutorialMessage("建造防御塔",
-                            "请按照引导建造三种防御塔:1. 点击右下角建造按钮; 2. 选择弓箭塔; 3. 在指定位置点击建造",
-                            "请建造弓箭塔");
+                            "请按照引导部署士兵:1. 点击右下角部署按钮; 2. 选择步兵; 3. 点击合适位置部署",
+                            "部署花费10人力，5补给");
                     break;
 
-                case BUILD_CANNON_TOWER:
-                    showTutorialMessage("继续建造",
-                            "很好！现在请建造炮塔,炮塔伤害高但攻击速度慢",
-                            "请建造炮塔");
+                case DEPLOY_ANTI_TANK:
+                    showTutorialMessage("继续部署",
+                            "很好！现在请部署反坦克兵，他们会对装甲造成更高伤害",
+                            "部署花费20人力，15补给");
                     break;
 
-                case BUILD_MAGE_TOWER:
-                    showTutorialMessage("最后一种防御塔",
-                            "现在请建造法师塔,法师塔射程最远",
-                            "请建造法师塔");
+                case DEPLOY_ARTILLERY:
+                    showTutorialMessage("继续部署",
+                            "最后部署炮兵，注意他们只能攻击远处敌人",
+                            "部署花费15人力，10补给");
                     break;
 
                 case WAITING_FOR_ENEMIES:
                     showTutorialMessage("准备迎敌",
-                            "所有防御塔已建造完成！,几秒后敌人将开始出现",
+                            "士兵部署完成！,几秒后敌人将开始出现",
                             "请稍候...");
                     break;
 

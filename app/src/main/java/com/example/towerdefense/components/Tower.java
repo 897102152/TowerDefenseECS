@@ -12,9 +12,9 @@ public class Tower implements Component {
      * 防御塔类型枚举 - 定义游戏中不同类型的防御塔
      */
     public enum Type {
-        ARCHER, // 弓箭塔：均衡的伤害和射程
-        CANNON, // 加农炮：高伤害但射程较短
-        MAGE    // 法师塔：中等伤害，长射程
+        Infantry, // 弓箭塔：均衡的伤害和射程
+        Anti_tank, // 加农炮：高伤害但射程较短
+        Artillery    // 法师塔：中等伤害，长射程
     }
 
     // 公共字段 - 在ECS架构中通常直接访问以提高性能

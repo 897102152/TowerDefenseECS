@@ -214,17 +214,17 @@ public class SpawnSystem extends ECSSystem {
         int reward = 0;
 
         switch (enemyType) {
-            case GOBLIN:
+            case Vehicle:
                 health = 30;
                 speed = 100;
                 reward = 5;
                 break;
-            case ORC:
+            case Infantry:
                 health = 60;
                 speed = 60;
                 reward = 10;
                 break;
-            case TROLL:
+            case Armour:
                 health = 100;
                 speed = 40;
                 reward = 20;

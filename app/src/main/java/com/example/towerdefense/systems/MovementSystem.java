@@ -2,7 +2,6 @@ package com.example.towerdefense.systems;
 
 import com.example.towerdefense.ecs.ECSSystem;
 import com.example.towerdefense.ecs.Entity;
-import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
@@ -218,7 +217,7 @@ public class MovementSystem extends ECSSystem {
      */
     private void applySingleTargetDamage(Entity projectile, Entity target, int damage) {
         Projectile projectileComp = projectile.getComponent(Projectile.class);
-        Tower.Type towerType = projectileComp != null ? projectileComp.towerType : Tower.Type.ARCHER;
+        Tower.Type towerType = projectileComp != null ? projectileComp.towerType : Tower.Type.Infantry;
 
         applyDamageToEnemy(target, damage, towerType);
         System.out.println("MovementSystem: 单目标伤害命中敌人，防御塔类型: " + towerType);
@@ -230,7 +229,7 @@ public class MovementSystem extends ECSSystem {
     private void applyAreaDamage(Entity projectile, float centerX, float centerY,
                                  int damage, float radius) {
         Projectile projectileComp = projectile.getComponent(Projectile.class);
-        Tower.Type towerType = projectileComp != null ? projectileComp.towerType : Tower.Type.ARCHER;
+        Tower.Type towerType = projectileComp != null ? projectileComp.towerType : Tower.Type.Infantry;
 
         List<Entity> enemies = world.getEntitiesWithComponent(Enemy.class);
 

@@ -1,7 +1,6 @@
 package com.example.towerdefense.view;
 
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -38,7 +37,7 @@ public class GameView extends View {
     private boolean isBuildMode = true;
 
     // ========== 塔选择和移除模式 ==========
-    private Tower.Type selectedTowerType = Tower.Type.ARCHER;
+    private Tower.Type selectedTowerType = Tower.Type.Infantry;
     private boolean isRemoveMode = false;
 
     // ========== 绘制工具 ==========
@@ -59,12 +58,12 @@ public class GameView extends View {
     private GameViewListener gameViewListener;
 
     // ========== 矢量图资源 ==========
-    private Drawable goblinDrawable;
-    private Drawable orcDrawable;
-    private Drawable trollDrawable;
-    private Drawable archerTowerDrawable;
-    private Drawable cannonTowerDrawable;
-    private Drawable mageTowerDrawable;
+    private Drawable vehicleDrawable;
+    private Drawable infantryDrawable;
+    private Drawable armourDrawable;
+    private Drawable infantryTowerDrawable;
+    private Drawable antitankTowerDrawable;
+    private Drawable artilleryDrawable;
 
     // ========== 图标尺寸控制 ==========
     private int enemyIconSize = 60;
@@ -205,13 +204,13 @@ public class GameView extends View {
 
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                goblinDrawable = getContext().getDrawable(R.drawable.enemy_reconnaissance);
-                orcDrawable = getContext().getDrawable(R.drawable.enemy_infantry);
-                trollDrawable = getContext().getDrawable(R.drawable.enemy_armour);
+                vehicleDrawable = getContext().getDrawable(R.drawable.enemy_vehicle);
+                infantryDrawable = getContext().getDrawable(R.drawable.enemy_infantry);
+                armourDrawable = getContext().getDrawable(R.drawable.enemy_armour);
             } else {
-                goblinDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_reconnaissance, getContext().getTheme());
-                orcDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_infantry, getContext().getTheme());
-                trollDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_armour, getContext().getTheme());
+                vehicleDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_vehicle, getContext().getTheme());
+                infantryDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_infantry, getContext().getTheme());
+                armourDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_armour, getContext().getTheme());
             }
 
             System.out.println("GameView: 敌人矢量图加载完成");
@@ -227,9 +226,9 @@ public class GameView extends View {
         System.out.println("GameView: 开始加载防御塔矢量图");
 
         try {
-            archerTowerDrawable = getContext().getDrawable(R.drawable.tower_infantry);
-            cannonTowerDrawable = getContext().getDrawable(R.drawable.tower_anti_tank);
-            mageTowerDrawable = getContext().getDrawable(R.drawable.tower_artillery);
+            infantryTowerDrawable = getContext().getDrawable(R.drawable.tower_infantry);
+            antitankTowerDrawable = getContext().getDrawable(R.drawable.tower_anti_tank);
+            artilleryDrawable = getContext().getDrawable(R.drawable.tower_artillery);
 
             System.out.println("GameView: 防御塔矢量图加载完成");
         } catch (Exception e) {
@@ -241,9 +240,9 @@ public class GameView extends View {
      * 更新Drawable边界
      */
     private void updateDrawableBounds() {
-        if (goblinDrawable != null) goblinDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
-        if (orcDrawable != null) orcDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
-        if (trollDrawable != null) trollDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        if (vehicleDrawable != null) vehicleDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        if (infantryDrawable != null) infantryDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        if (armourDrawable != null) armourDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
     }
 
     // =====================================================================
@@ -511,7 +510,7 @@ public class GameView extends View {
 
         // 绘制攻击范围
         if (towerComp != null) {
-            if (towerComp.type == Tower.Type.MAGE) {
+            if (towerComp.type == Tower.Type.Artillery) {
                 // 法师塔：只绘制圆环区域（外圈减去内圈）
                 paint.setColor(Color.argb(50, 255, 255, 255)); // 蓝色圆环
 
@@ -539,9 +538,9 @@ public class GameView extends View {
         // 简单的几何图形绘制
         paint.setStyle(Paint.Style.FILL);
         switch (type) {
-            case ARCHER: paint.setColor(Color.GREEN); break;
-            case CANNON: paint.setColor(Color.RED); break;
-            case MAGE: paint.setColor(Color.BLUE); break;
+            case Infantry: paint.setColor(Color.GREEN); break;
+            case Anti_tank: paint.setColor(Color.RED); break;
+            case Artillery: paint.setColor(Color.BLUE); break;
             default: paint.setColor(Color.GRAY); break;
         }
         canvas.drawCircle(transform.x, transform.y, towerIconSize / 3f, paint);
@@ -556,19 +555,19 @@ public class GameView extends View {
         if (projectileComp != null) {
             // 根据防御塔类型设置不同的弹道外观
             switch (projectileComp.towerType) {
-                case ARCHER:
+                case Infantry:
                     // 弓箭塔：绿色箭头
-                    drawArrowProjectile(canvas, transform, Color.GREEN);
+                    drawinfantryProjectile(canvas, transform, Color.GREEN);
                     break;
 
-                case CANNON:
+                case Anti_tank:
                     // 炮塔：红色炮弹
-                    drawCannonProjectile(canvas, transform, Color.RED);
+                    drawantitankProjectile(canvas, transform, Color.RED);
                     break;
 
-                case MAGE:
+                case Artillery:
                     // 法师塔：蓝色魔法球
-                    drawMagicProjectile(canvas, transform, Color.BLUE);
+                    drawartilleryProjectile(canvas, transform, Color.BLUE);
                     break;
 
                 default:
@@ -587,7 +586,7 @@ public class GameView extends View {
     /**
      * 绘制弓箭塔的箭头弹道
      */
-    private void drawArrowProjectile(Canvas canvas, Transform transform, int color) {
+    private void drawinfantryProjectile(Canvas canvas, Transform transform, int color) {
         paint.setColor(color);
         paint.setStyle(Paint.Style.FILL);
 
@@ -611,7 +610,7 @@ public class GameView extends View {
     /**
      * 绘制炮塔的炮弹弹道
      */
-    private void drawCannonProjectile(Canvas canvas, Transform transform, int color) {
+    private void drawantitankProjectile(Canvas canvas, Transform transform, int color) {
         paint.setColor(color);
         paint.setStyle(Paint.Style.FILL);
 
@@ -627,7 +626,7 @@ public class GameView extends View {
     /**
      * 绘制法师塔的魔法弹道
      */
-    private void drawMagicProjectile(Canvas canvas, Transform transform, int color) {
+    private void drawartilleryProjectile(Canvas canvas, Transform transform, int color) {
         // 绘制魔法球外圈
         paint.setColor(color);
         paint.setStyle(Paint.Style.FILL);
@@ -656,15 +655,15 @@ public class GameView extends View {
 
         String typeInfo = "";
         switch (enemyType) {
-            case GOBLIN:
+            case Vehicle:
                 typeInfo = "脆弱: +25%伤害";
                 paint.setColor(Color.YELLOW);
                 break;
-            case ORC:
+            case Infantry:
                 typeInfo = "标准: 无修正";
                 paint.setColor(Color.WHITE);
                 break;
-            case TROLL:
+            case Armour:
                 typeInfo = "重甲: 抗弓箭，弱炮击";
                 paint.setColor(Color.CYAN);
                 break;
@@ -817,14 +816,14 @@ public class GameView extends View {
      * 绘制建造模式状态
      */
     private void drawBuildModeStatus(Canvas canvas, float textSize) {
-        String buildModeText = "建造模式: " + (isBuildMode ? "开启" : "关闭");
+        String buildModeText = "部署模式: " + (isBuildMode ? "开启" : "关闭");
         paint.setColor(isBuildMode ? Color.GREEN : Color.RED);
         canvas.drawText(buildModeText, 10, textSize * 2 + 5, paint);
 
         if (!isBuildMode) {
             paint.setColor(Color.YELLOW);
             paint.setTextSize(textSize * 0.6f);
-            canvas.drawText("点击建造模式按钮来放置防御塔", 10, textSize * 3 + 5, paint);
+            canvas.drawText("点击部署模式按钮来部署兵力", 10, textSize * 3 + 5, paint);
         }
     }
 
@@ -837,9 +836,9 @@ public class GameView extends View {
      */
     private Drawable getEnemyDrawable(Enemy.Type type) {
         switch (type) {
-            case GOBLIN: return goblinDrawable;
-            case ORC: return orcDrawable;
-            case TROLL: return trollDrawable;
+            case Vehicle: return vehicleDrawable;
+            case Infantry: return infantryDrawable;
+            case Armour: return armourDrawable;
             default: return null;
         }
     }
@@ -849,9 +848,9 @@ public class GameView extends View {
      */
     private Drawable getTowerDrawable(Tower.Type type) {
         switch (type) {
-            case ARCHER: return archerTowerDrawable;
-            case CANNON: return cannonTowerDrawable;
-            case MAGE: return mageTowerDrawable;
+            case Infantry: return infantryTowerDrawable;
+            case Anti_tank: return antitankTowerDrawable;
+            case Artillery: return artilleryDrawable;
             default: return null;
         }
     }
@@ -882,11 +881,11 @@ public class GameView extends View {
      */
     private String getModeText() {
         if (isRemoveMode) {
-            return "移除模式：点击防御塔移除";
+            return "点击士兵取消部署";
         } else if (selectedTowerType != null) {
-            return "建造模式 - 选中: " + selectedTowerType.name();
+            return "部署模式 - 选中: " + selectedTowerType.name();
         } else {
-            return "建造模式 - 请选择塔类型";
+            return "部署模式 - 请选择塔类型";
         }
     }
 
@@ -910,13 +909,13 @@ public class GameView extends View {
     private void showBuildModeRequiredMessage() {
         System.out.println("GameView: 请先开启建造模式来放置防御塔");
         if (gameViewListener != null) {
-            gameViewListener.showGameMessage("建造提示", "请先开启建造模式", "点击右下角建造按钮开启建造模式", true);
+            gameViewListener.showGameMessage("部署提示", "请先开启部署模式", "点击右下角部署按钮开启部署模式", true);
         }
     }
 
     private void showNoTowerSelectedMessage() {
         if (gameViewListener != null) {
-            gameViewListener.showGameMessage("建造提示", "请先选择要建造的防御塔类型", "点击建造菜单中的塔图标", true);
+            gameViewListener.showGameMessage("部署提示", "请先选择要部署的兵种类型", "点击部署菜单中的士兵图标", true);
         }
     }
 
@@ -927,11 +926,11 @@ public class GameView extends View {
         if (gameViewListener != null) {
             String towerName = "";
             switch (towerType) {
-                case ARCHER: towerName = "弓箭塔"; break;
-                case CANNON: towerName = "炮塔"; break;
-                case MAGE: towerName = "法师塔"; break;
+                case Infantry: towerName = "步兵"; break;
+                case Anti_tank: towerName = "反坦克兵"; break;
+                case Artillery: towerName = "炮兵"; break;
             }
-            gameViewListener.showGameMessage("建造成功", towerName + "已放置", "继续建造或退出建造模式", true);
+            gameViewListener.showGameMessage("部署成功", towerName + "已部署", "继续部署或退出部署模式", true);
         }
     }
 

@@ -3,13 +3,11 @@ package com.example.towerdefense;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast;
 
 import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.ecs.Entity;
 import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Tower;
-import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Path;
 import com.example.towerdefense.systems.MovementSystem;
@@ -58,9 +56,9 @@ public class GameEngine {
     public enum TutorialState {
         WELCOME,
         RESOURCE_EXPLANATION,
-        BUILD_ARCHER_TOWER,
-        BUILD_CANNON_TOWER,
-        BUILD_MAGE_TOWER,
+        DEPLOY_INFANTRY,
+        DEPLOY_ANTI_TANK,
+        DEPLOY_ARTILLERY,
         WAITING_FOR_ENEMIES,
         COMPLETED
     }
@@ -555,24 +553,24 @@ public class GameEngine {
                 break;
 
             case RESOURCE_EXPLANATION:
-                tutorialState = TutorialState.BUILD_ARCHER_TOWER;
+                tutorialState = TutorialState.DEPLOY_INFANTRY;
                 System.out.println("GameEngine: 教程状态推进到 BUILD_ARCHER_TOWER");
                 if (updateListener != null) {
                     updateListener.onTutorialStepStarted(tutorialState, "请建造弓箭塔");
                 }
                 break;
 
-            case BUILD_ARCHER_TOWER:
+            case DEPLOY_INFANTRY:
                 // 等待玩家建造弓箭塔，这里不自动推进
                 System.out.println("GameEngine: BUILD_ARCHER_TOWER 状态，等待玩家建造");
                 break;
 
-            case BUILD_CANNON_TOWER:
+            case DEPLOY_ANTI_TANK:
                 // 等待玩家建造炮塔
                 System.out.println("GameEngine: BUILD_CANNON_TOWER 状态，等待玩家建造");
                 break;
 
-            case BUILD_MAGE_TOWER:
+            case DEPLOY_ARTILLERY:
                 // 等待玩家建造法师塔
                 System.out.println("GameEngine: BUILD_MAGE_TOWER 状态，等待玩家建造");
                 break;
@@ -599,10 +597,10 @@ public class GameEngine {
         System.out.println(" GameEngine: 当前正在建造防御塔type："+ towerType);
 
         switch (tutorialState) {
-            case BUILD_ARCHER_TOWER:
-                if (towerType == Tower.Type.ARCHER) {
+            case DEPLOY_INFANTRY:
+                if (towerType == Tower.Type.Infantry) {
                     towersBuilt++;
-                    tutorialState = TutorialState.BUILD_CANNON_TOWER;
+                    tutorialState = TutorialState.DEPLOY_ANTI_TANK;
                     // 直接推进教程，不通过消息系统
                     if (updateListener != null) {
                         updateListener.onTutorialStepStarted(tutorialState, "很好！现在请建造一个炮塔");
@@ -619,10 +617,10 @@ public class GameEngine {
                 }
                 break;
 
-            case BUILD_CANNON_TOWER:
-                if (towerType == Tower.Type.CANNON) {
+            case DEPLOY_ANTI_TANK:
+                if (towerType == Tower.Type.Anti_tank) {
                     towersBuilt++;
-                    tutorialState = TutorialState.BUILD_MAGE_TOWER;
+                    tutorialState = TutorialState.DEPLOY_ARTILLERY;
                     if (updateListener != null) {
                         updateListener.onTutorialStepStarted(tutorialState, "不错！最后请建造一个法师塔");
                     }
@@ -636,8 +634,8 @@ public class GameEngine {
                 }
                 break;
 
-            case BUILD_MAGE_TOWER:
-                if (towerType == Tower.Type.MAGE) {
+            case DEPLOY_ARTILLERY:
+                if (towerType == Tower.Type.Artillery) {
                     towersBuilt++;
                     tutorialState = TutorialState.WAITING_FOR_ENEMIES;
                     if (updateListener != null) {
@@ -678,12 +676,12 @@ public class GameEngine {
      */
     private Tower.Type getRequiredTowerTypeForTutorial() {
         switch (tutorialState) {
-            case BUILD_ARCHER_TOWER:
-                return Tower.Type.ARCHER;
-            case BUILD_CANNON_TOWER:
-                return Tower.Type.CANNON;
-            case BUILD_MAGE_TOWER:
-                return Tower.Type.MAGE;
+            case DEPLOY_INFANTRY:
+                return Tower.Type.Infantry;
+            case DEPLOY_ANTI_TANK:
+                return Tower.Type.Anti_tank;
+            case DEPLOY_ARTILLERY:
+                return Tower.Type.Artillery;
             default:
                 return null; // 其他状态不要求特定类型
         }
@@ -735,11 +733,11 @@ public class GameEngine {
                 return "欢迎进入教程关，游戏目标：建造防御塔阻止敌人到达终点";
             case RESOURCE_EXPLANATION:
                 return "资源系统：人力用于建造防御塔，补给通过击败敌人获得";
-            case BUILD_ARCHER_TOWER:
+            case DEPLOY_INFANTRY:
                 return "请按照引导建造三种防御塔：1. 点击建造按钮 2. 选择弓箭塔 3. 在指定位置点击建造";
-            case BUILD_CANNON_TOWER:
+            case DEPLOY_ANTI_TANK:
                 return "很好！现在请建造炮塔，炮塔伤害高但攻击速度慢";
-            case BUILD_MAGE_TOWER:
+            case DEPLOY_ARTILLERY:
                 return "现在请建造法师塔，法师塔射程最远";
             case WAITING_FOR_ENEMIES:
                 return "所有防御塔已建造完成！几秒后敌人将开始出现";
@@ -755,9 +753,9 @@ public class GameEngine {
      */
     private String getTowerTypeName(Tower.Type type) {
         switch (type) {
-            case ARCHER: return "弓箭塔";
-            case CANNON: return "炮塔";
-            case MAGE: return "法师塔";
+            case Infantry: return "弓箭塔";
+            case Anti_tank: return "炮塔";
+            case Artillery: return "法师塔";
             default: return "未知类型";
         }
     }
@@ -1101,15 +1099,15 @@ public class GameEngine {
             int supplyCost = 0;
 
             switch (type) {
-                case ARCHER:
+                case Infantry:
                     manpowerCost = 10;
                     supplyCost = 5;
                     break;
-                case CANNON:
+                case Anti_tank:
                     manpowerCost = 20;
                     supplyCost = 15;
                     break;
-                case MAGE:
+                case Artillery:
                     manpowerCost = 15;
                     supplyCost = 10;
                     break;
@@ -1175,21 +1173,21 @@ public class GameEngine {
         System.out.println("GameEngine: 计算网格大小: " + gridSize + "px (屏幕宽度: " + screenWidth + "px)");
 
         switch (type) {
-            case ARCHER:
+            case Infantry:
                 // 弓箭塔：2格半径，5x5格子的内切圆
                 damage = 10;
                 range = 4 * gridSize; // 2格半径
                 attackSpeed = 1.0f;//攻击速度
                 System.out.println("GameEngine: 弓箭塔攻击范围: " + range + "px (2格半径)");
                 break;
-            case CANNON:
+            case Anti_tank:
                 // 炮塔：1格半径，3x3格子的内切圆
                 damage = 25;
                 range = 2 * gridSize; // 1格半径
                 attackSpeed = 0.5f;
                 System.out.println("GameEngine: 炮塔攻击范围: " + range + "px (1格半径)");
                 break;
-            case MAGE:
+            case Artillery:
                 // 法师塔：圆环攻击范围，内圈1.5格，外圈3格
                 damage = 50;
                 innerRange = 3f * gridSize; // 内圈半径（1.5格）

@@ -12,9 +12,9 @@ public class Enemy implements Component {
      * 敌人类型枚举 - 定义游戏中不同类型的敌人
      */
     public enum Type {
-        GOBLIN, // 哥布林：快速但脆弱
-        ORC,    // 兽人：均衡型敌人
-        TROLL   // 巨魔：缓慢但强大
+        Vehicle, // 哥布林：快速但脆弱
+        Infantry,    // 兽人：均衡型敌人
+        Armour   // 巨魔：缓慢但强大
     }
 
     // 公共字段 - 在ECS架构中通常直接访问以提高性能
@@ -139,24 +139,24 @@ public class Enemy implements Component {
         float multiplier = 1.0f; // 默认伤害倍率
 
         switch (this.type) {
-            case GOBLIN:
+            case Vehicle:
                 // 哥布林：受到所有伤害均为125%
                 multiplier = 1.25f;
                 break;
 
-            case ORC:
+            case Infantry:
                 // 兽人：受到的伤害没有修正，为100%
                 multiplier = 1.0f;
                 break;
 
-            case TROLL:
+            case Armour:
                 // 巨魔：受到125%来自炮塔和魔法塔的伤害，受到50%来自弓箭塔的伤害
                 switch (towerType) {
-                    case CANNON:
-                    case MAGE:
+                    case Anti_tank:
+                    case Artillery:
                         multiplier = 1.25f; // 炮塔和魔法塔造成125%伤害
                         break;
-                    case ARCHER:
+                    case Infantry:
                         multiplier = 0.5f; // 弓箭塔造成50%伤害
                         break;
                 }
