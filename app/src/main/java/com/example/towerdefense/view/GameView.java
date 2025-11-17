@@ -542,25 +542,104 @@ public class GameView extends View {
     }
 
     /**
-     * 绘制抛射体
+     * 绘制抛射体 - 根据防御塔类型显示不同的弹道外观
      */
     private void drawProjectile(Canvas canvas, Entity projectile, Transform transform) {
         Projectile projectileComp = projectile.getComponent(Projectile.class);
 
         if (projectileComp != null) {
-            // 根据速度设置不同颜色（可选，便于区分）
-            if (projectileComp.speed > 220f) { // 弓箭塔速度 > 200*1.1
-                paint.setColor(Color.GREEN); // 绿色 - 弓箭塔
-            } else if (projectileComp.speed < 100f) { // 炮塔速度 < 200*0.55
-                paint.setColor(Color.RED); // 红色 - 炮塔
-            } else {
-                paint.setColor(Color.BLUE); // 蓝色 - 法师塔
+            // 根据防御塔类型设置不同的弹道外观
+            switch (projectileComp.towerType) {
+                case ARCHER:
+                    // 弓箭塔：绿色箭头
+                    drawArrowProjectile(canvas, transform, Color.GREEN);
+                    break;
+
+                case CANNON:
+                    // 炮塔：红色炮弹
+                    drawCannonProjectile(canvas, transform, Color.RED);
+                    break;
+
+                case MAGE:
+                    // 法师塔：蓝色魔法球
+                    drawMagicProjectile(canvas, transform, Color.BLUE);
+                    break;
+
+                default:
+                    // 默认弹道：白色圆形
+                    paint.setColor(Color.WHITE);
+                    canvas.drawCircle(transform.x, transform.y, 5f, paint);
+                    break;
             }
         } else {
-            paint.setColor(Color.WHITE); // 默认白色
+            // 如果没有弹道组件，绘制默认弹道
+            paint.setColor(Color.WHITE);
+            canvas.drawCircle(transform.x, transform.y, 5f, paint);
         }
+    }
 
-        canvas.drawCircle(transform.x, transform.y, 5f, paint);
+    /**
+     * 绘制弓箭塔的箭头弹道
+     */
+    private void drawArrowProjectile(Canvas canvas, Transform transform, int color) {
+        paint.setColor(color);
+        paint.setStyle(Paint.Style.FILL);
+
+        // 绘制箭头主体（细长矩形）
+        float arrowLength = 15f;
+        float arrowWidth = 3f;
+
+        // 计算弹道方向（如果需要可以添加方向计算）
+        // 暂时绘制为水平方向的箭头
+
+        // 绘制箭头线
+        paint.setStrokeWidth(arrowWidth);
+        canvas.drawLine(transform.x - arrowLength/2, transform.y,
+                transform.x + arrowLength/2, transform.y, paint);
+
+        // 绘制箭头头部
+        float headSize = 4f;
+        canvas.drawCircle(transform.x + arrowLength/2, transform.y, headSize, paint);
+    }
+
+    /**
+     * 绘制炮塔的炮弹弹道
+     */
+    private void drawCannonProjectile(Canvas canvas, Transform transform, int color) {
+        paint.setColor(color);
+        paint.setStyle(Paint.Style.FILL);
+
+        // 绘制圆形炮弹
+        float radius = 6f;
+        canvas.drawCircle(transform.x, transform.y, radius, paint);
+
+        // 添加炮弹高光效果
+        paint.setColor(Color.WHITE);
+        canvas.drawCircle(transform.x - radius/3, transform.y - radius/3, radius/3, paint);
+    }
+
+    /**
+     * 绘制法师塔的魔法弹道
+     */
+    private void drawMagicProjectile(Canvas canvas, Transform transform, int color) {
+        // 绘制魔法球外圈
+        paint.setColor(color);
+        paint.setStyle(Paint.Style.FILL);
+        float outerRadius = 8f;
+        canvas.drawCircle(transform.x, transform.y, outerRadius, paint);
+
+        // 绘制魔法球内圈（发光效果）
+        paint.setColor(Color.WHITE);
+        float innerRadius = 4f;
+        canvas.drawCircle(transform.x, transform.y, innerRadius, paint);
+
+        // 绘制魔法效果（简单的星光效果）
+        paint.setColor(Color.argb(150, 200, 200, 255));
+        float sparkleLength = 3f;
+        canvas.drawLine(transform.x - outerRadius, transform.y, transform.x - outerRadius - sparkleLength, transform.y, paint);
+        canvas.drawLine(transform.x + outerRadius, transform.y, transform.x + outerRadius + sparkleLength, transform.y, paint);
+        canvas.drawLine(transform.x, transform.y - outerRadius, transform.x, transform.y - outerRadius - sparkleLength, paint);
+        canvas.drawLine(transform.x, transform.y + outerRadius, transform.x, transform.y + outerRadius + sparkleLength, paint);
     }
 
     /**

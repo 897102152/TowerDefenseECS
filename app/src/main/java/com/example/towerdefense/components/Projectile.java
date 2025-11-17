@@ -16,6 +16,11 @@ public class Projectile implements Component {
     public Entity target;
 
     /**
+     * 目标位置 - 对于范围伤害的弹道，记录攻击的目标位置
+     */
+    public float targetX, targetY;
+
+    /**
      * 伤害值 - 弹道命中目标时造成的伤害量
      * 这个值通常从发射的防御塔组件中传递过来
      */
@@ -28,15 +33,59 @@ public class Projectile implements Component {
     public float speed;
 
     /**
-     * 构造函数 - 初始化弹道组件
+     * 是否是范围伤害
+     */
+    public boolean isAreaDamage = false;
+
+    /**
+     * 范围伤害半径
+     */
+    public float areaRadius = 0;
+
+    /**
+     * 发射该弹道的防御塔类型
+     */
+    public Tower.Type towerType;
+
+    /**
+     * 构造函数 - 初始化弹道组件（追踪目标）
      * @param target 弹道要追踪的目标敌人实体
      * @param damage 命中时造成的伤害值
      * @param speed 弹道的移动速度
+     * @param towerType 发射弹道的防御塔类型
      */
-    public Projectile(Entity target, int damage, float speed) {
+    public Projectile(Entity target, int damage, float speed, Tower.Type towerType) {
         this.target = target;
         this.damage = damage;
         this.speed = speed;
+        this.towerType = towerType;
+
+        // 记录目标当前位置
+        if (target != null && target.hasComponent(Transform.class)) {
+            Transform targetTransform = target.getComponent(Transform.class);
+            this.targetX = targetTransform.x;
+            this.targetY = targetTransform.y;
+        }
+    }
+
+    /**
+     * 构造函数 - 初始化弹道组件（范围伤害，不追踪）
+     * @param targetX 目标位置X
+     * @param targetY 目标位置Y
+     * @param damage 命中时造成的伤害值
+     * @param speed 弹道的移动速度
+     * @param isAreaDamage 是否是范围伤害
+     * @param areaRadius 范围伤害半径
+     * @param towerType 发射弹道的防御塔类型
+     */
+    public Projectile(float targetX, float targetY, int damage, float speed, boolean isAreaDamage, float areaRadius, Tower.Type towerType) {
+        this.targetX = targetX;
+        this.targetY = targetY;
+        this.damage = damage;
+        this.speed = speed;
+        this.isAreaDamage = isAreaDamage;
+        this.areaRadius = areaRadius;
+        this.towerType = towerType;
     }
 
     // ========== Getter 方法 ==========
@@ -63,6 +112,30 @@ public class Projectile implements Component {
      */
     public float getSpeed() {
         return speed;
+    }
+
+    /**
+     * 获取是否是范围伤害
+     * @return 是否是范围伤害
+     */
+    public boolean isAreaDamage() {
+        return isAreaDamage;
+    }
+
+    /**
+     * 获取范围伤害半径
+     * @return 范围伤害半径
+     */
+    public float getAreaRadius() {
+        return areaRadius;
+    }
+
+    /**
+     * 获取发射弹道的防御塔类型
+     * @return 防御塔类型
+     */
+    public Tower.Type getTowerType() {
+        return towerType;
     }
 
     // ========== Setter 方法 ==========
@@ -92,5 +165,23 @@ public class Projectile implements Component {
      */
     public void setSpeed(float speed) {
         this.speed = speed;
+    }
+
+    /**
+     * 设置范围伤害
+     * @param areaDamage 是否是范围伤害
+     * @param radius 范围伤害半径
+     */
+    public void setAreaDamage(boolean areaDamage, float radius) {
+        this.isAreaDamage = areaDamage;
+        this.areaRadius = radius;
+    }
+
+    /**
+     * 设置防御塔类型
+     * @param towerType 防御塔类型
+     */
+    public void setTowerType(Tower.Type towerType) {
+        this.towerType = towerType;
     }
 }

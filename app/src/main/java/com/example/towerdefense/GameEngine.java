@@ -1029,7 +1029,7 @@ public class GameEngine {
                 // 弓箭塔：2格半径，5x5格子的内切圆
                 damage = 10;
                 range = 4 * gridSize; // 2格半径
-                attackSpeed = 1.0f;
+                attackSpeed = 1.0f;//攻击速度
                 System.out.println("GameEngine: 弓箭塔攻击范围: " + range + "px (2格半径)");
                 break;
             case CANNON:
@@ -1041,10 +1041,10 @@ public class GameEngine {
                 break;
             case MAGE:
                 // 法师塔：圆环攻击范围，内圈1.5格，外圈3格
-                damage = 15;
+                damage = 50;
                 innerRange = 3f * gridSize; // 内圈半径（1.5格）
                 range = 6 * gridSize; // 外圈半径（3格）
-                attackSpeed = 0.8f;
+                attackSpeed = 0.1f;
                 System.out.println("GameEngine: 法师塔攻击范围: 内圈" + innerRange + "px, 外圈" + range + "px");
                 break;
         }

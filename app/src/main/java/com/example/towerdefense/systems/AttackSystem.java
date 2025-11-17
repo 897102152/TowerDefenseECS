@@ -118,36 +118,55 @@ public class AttackSystem extends ECSSystem {
         Transform towerTransform = tower.getComponent(Transform.class);
         Tower towerComp = tower.getComponent(Tower.class);
 
+        if (towerComp == null) return;
+
         // 根据防御塔类型设置不同的弹道速度
         float baseSpeed = 200f; // 基准速度
         float projectileSpeed = baseSpeed;
 
-        if (towerComp != null) {
-            switch (towerComp.type) {
-                case ARCHER:
-                    // 弓箭塔：基准速度 × 1.25倍
-                    projectileSpeed = baseSpeed * 1.25f;
-                    break;
-                case CANNON:
-                    // 炮塔：基准速度 × 0.5倍
-                    projectileSpeed = baseSpeed * 0.5f;
-                    break;
-                case MAGE:
-                    // 法师塔：基准速度 × 0.75倍
-                    projectileSpeed = baseSpeed * 0.75f;
-                    break;
-            }
+        // 获取目标当前位置
+        Transform targetTransform = target.getComponent(Transform.class);
+        float targetX = targetTransform.x;
+        float targetY = targetTransform.y;
 
-            System.out.println("AttackSystem: " + towerComp.type + "塔发射弹道，速度: " + projectileSpeed);
+        switch (towerComp.type) {
+            case ARCHER:
+                // 弓箭塔：追踪弹道，基准速度 × 1.25倍
+                projectileSpeed = baseSpeed * 1.25f;
+
+                // 创建追踪弹道
+                Entity projectile = world.createEntity();
+                projectile.addComponent(new Transform(towerTransform.x, towerTransform.y));
+                projectile.addComponent(new Projectile(target, damage, projectileSpeed, towerComp.type));
+
+                System.out.println("AttackSystem: 弓箭塔发射追踪弹道，速度: " + projectileSpeed);
+                break;
+
+            case CANNON:
+                // 炮塔：范围伤害，基准速度 × 0.5倍，小范围
+                projectileSpeed = baseSpeed * 0.5f;
+                float cannonAreaRadius = 60f; // 炮塔范围伤害半径
+
+                // 创建范围伤害弹道（不追踪）
+                Entity cannonProjectile = world.createEntity();
+                cannonProjectile.addComponent(new Transform(towerTransform.x, towerTransform.y));
+                cannonProjectile.addComponent(new Projectile(targetX, targetY, damage, projectileSpeed, true, cannonAreaRadius, towerComp.type));
+
+                System.out.println("AttackSystem: 炮塔发射范围伤害弹道，速度: " + projectileSpeed + ", 范围半径: " + cannonAreaRadius);
+                break;
+
+            case MAGE:
+                // 法师塔：范围伤害，基准速度 × 0.75倍，大范围
+                projectileSpeed = baseSpeed * 1.1f;
+                float mageAreaRadius = 120f; // 法师塔范围伤害半径
+
+                // 创建范围伤害弹道（不追踪）
+                Entity mageProjectile = world.createEntity();
+                mageProjectile.addComponent(new Transform(towerTransform.x, towerTransform.y));
+                mageProjectile.addComponent(new Projectile(targetX, targetY, damage, projectileSpeed, true, mageAreaRadius, towerComp.type));
+
+                System.out.println("AttackSystem: 法师塔发射范围伤害弹道，速度: " + projectileSpeed + ", 范围半径: " + mageAreaRadius);
+                break;
         }
-
-        // 创建新的弹道实体
-        Entity projectile = world.createEntity();
-
-        // 添加位置组件，设置在防御塔的位置
-        projectile.addComponent(new Transform(towerTransform.x, towerTransform.y));
-
-        // 添加弹道组件，包含目标、伤害和计算后的移动速度
-        projectile.addComponent(new Projectile(target, damage, projectileSpeed));
     }
 }
