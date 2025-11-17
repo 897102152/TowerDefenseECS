@@ -163,6 +163,50 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 不需要特殊处理，UI会在下次绘制时更新
         System.out.println("GameActivity: 高地区域敌人数量更新: " + enemyCount);
     }
+    /**
+     * 敌人被击败回调 - 添加伤害类型信息
+     */
+    @Override
+    public void onEnemyDefeated(Enemy enemy, int reward) {
+        // 可以在这里添加伤害类型的提示信息
+        String damageInfo = getDamageTypeInfo(enemy.type);
+        System.out.println("GameActivity: 敌人被击败 - " + enemy.type + "，奖励: " + reward + "，伤害特性: " + damageInfo);
+
+        // 如果是教程关卡，可以显示伤害类型说明
+        if (gameEngine != null && gameEngine.isTutorialLevel()) {
+            displayGameMessage("伤害类型",
+                    "击败" + getEnemyTypeName(enemy.type) + "，" + damageInfo,
+                    "不同敌人对不同类型的防御塔有不同抗性", true);
+        }
+    }
+
+    /**
+     * 获取敌人伤害类型信息
+     */
+    private String getDamageTypeInfo(Enemy.Type enemyType) {
+        switch (enemyType) {
+            case GOBLIN:
+                return "受到所有类型伤害+25%";
+            case ORC:
+                return "受到标准伤害";
+            case TROLL:
+                return "对弓箭伤害-50%，对炮击和魔法伤害+25%";
+            default:
+                return "未知伤害类型";
+        }
+    }
+
+    /**
+     * 获取敌人类型名称
+     */
+    private String getEnemyTypeName(Enemy.Type enemyType) {
+        switch (enemyType) {
+            case GOBLIN: return "哥布林";
+            case ORC: return "兽人";
+            case TROLL: return "巨魔";
+            default: return "未知敌人";
+        }
+    }
     // =====================================================================
     // 游戏初始化相关方法
     // =====================================================================
@@ -1053,15 +1097,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
             System.out.println("GameActivity: 资源更新 - 人力:" + manpower + " 补给:" + supply);
         });
-    }
-
-    /**
-     * 敌人被击败回调
-     */
-    @Override
-    public void onEnemyDefeated(Enemy enemy, int reward) {
-        // 不显示任何消息
-        System.out.println("GameActivity: 敌人被击败 - " + enemy.type + "，奖励: " + reward);
     }
 
     /**

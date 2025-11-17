@@ -449,7 +449,7 @@ public class GameView extends View {
     }
 
     /**
-     * 绘制敌人 - 使用矢量图
+     * 绘制敌人 - 添加伤害类型视觉反馈
      */
     private void drawEnemy(Canvas canvas, Entity enemy, Transform transform) {
         Enemy enemyComp = enemy.getComponent(Enemy.class);
@@ -472,6 +472,9 @@ public class GameView extends View {
         if (health != null) {
             drawHealthBar(canvas, transform, health, enemyIconSize / 2f + 10f);
         }
+
+        // 可选：在敌人上方绘制伤害类型信息
+        drawEnemyTypeInfo(canvas, transform, enemyComp.type);
     }
 
     /**
@@ -644,7 +647,31 @@ public class GameView extends View {
         canvas.drawLine(transform.x, transform.y - outerRadius, transform.x, transform.y - outerRadius - sparkleLength, paint);
         canvas.drawLine(transform.x, transform.y + outerRadius, transform.x, transform.y + outerRadius + sparkleLength, paint);
     }
+    /**
+     * 绘制敌人类型信息
+     */
+    private void drawEnemyTypeInfo(Canvas canvas, Transform transform, Enemy.Type enemyType) {
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(12f);
 
+        String typeInfo = "";
+        switch (enemyType) {
+            case GOBLIN:
+                typeInfo = "脆弱: +25%伤害";
+                paint.setColor(Color.YELLOW);
+                break;
+            case ORC:
+                typeInfo = "标准: 无修正";
+                paint.setColor(Color.WHITE);
+                break;
+            case TROLL:
+                typeInfo = "重甲: 抗弓箭，弱炮击";
+                paint.setColor(Color.CYAN);
+                break;
+        }
+
+        canvas.drawText(typeInfo, transform.x - 30, transform.y - enemyIconSize / 2f - 5, paint);
+    }
     /**
      * 绘制用户界面
      */
