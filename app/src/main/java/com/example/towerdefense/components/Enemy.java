@@ -28,6 +28,15 @@ public class Enemy implements Component {
     // 新增：是否已发放奖励（避免重复发放）
     public boolean rewardGiven = false;
     /**
+     * 原始速度 - 用于高地减速后恢复
+     */
+    public float originalSpeed;
+
+    /**
+     * 是否在高地内
+     */
+    public boolean isInHighland = false;
+    /**
      * 构造函数 - 初始化敌人属性
      * @param type 敌人类型，决定基础属性
      * @param speed 移动速度，影响敌人在路径上的移动快慢
@@ -48,6 +57,7 @@ public class Enemy implements Component {
         this.pathIndex = 0; // 从第一个路径点开始移动
         this.pathTag = pathTag;
         this.rewardGiven = false;
+        this.originalSpeed = speed; // 保存原始速度
     }
     // ========== Getter 方法 ==========
     // 提供封装访问，虽然字段是public，但getter提供了更好的API设计

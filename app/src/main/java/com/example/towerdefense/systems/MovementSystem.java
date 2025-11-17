@@ -59,7 +59,7 @@ public class MovementSystem extends ECSSystem {
     }
 
     /**
-     * 移动敌人 - 处理敌人沿着路径的移动
+     * 移动敌人 - 处理敌人沿着路径的移动，包含高地减速效果
      */
     private void moveEnemy(Entity enemy, Transform transform, float deltaTime) {
         Enemy enemyComp = enemy.getComponent(Enemy.class);
@@ -70,6 +70,27 @@ public class MovementSystem extends ECSSystem {
                 world.removeEntity(enemy);
             }
             return;
+        }
+
+        // 只在有高地区域的关卡应用减速效果
+        if (gameEngine != null && gameEngine.hasHighlandArea()) {
+            // 检查敌人是否在高地区域内
+            boolean wasInHighland = enemyComp.isInHighland;
+            boolean isNowInHighland = gameEngine.isInHighlandArea(transform.x, transform.y);
+
+            // 处理高地状态变化
+            if (wasInHighland != isNowInHighland) {
+                enemyComp.isInHighland = isNowInHighland;
+                if (isNowInHighland) {
+                    // 进入高地，减速
+                    enemyComp.speed = enemyComp.originalSpeed * gameEngine.getHighlandSpeedMultiplier();
+                    System.out.println("MovementSystem: 敌人进入高地，速度降至 " + enemyComp.speed);
+                } else {
+                    // 离开高地，恢复速度
+                    enemyComp.speed = enemyComp.originalSpeed;
+                    System.out.println("MovementSystem: 敌人离开高地，速度恢复至 " + enemyComp.speed);
+                }
+            }
         }
 
         float[][] pathPoints = enemyPath.convertToScreenCoordinates(screenWidth, screenHeight);

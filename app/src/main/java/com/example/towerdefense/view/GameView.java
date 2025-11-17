@@ -394,6 +394,9 @@ public class GameView extends View {
                 drawSinglePath(canvas, path);
             }
         }
+        if (gameEngine != null && gameEngine.hasHighlandArea()) {
+            drawHighlandArea(canvas);
+        }
     }
 
     /**
@@ -672,7 +675,42 @@ public class GameView extends View {
         canvas.drawText("实体数量: " + entityCount, 10, getHeight() - 20, paint);
         canvas.drawText("网格: " + gridSize + "px", 10, getHeight() - 50, paint);
     }
+    /**
+     * 绘制高地区域边框 - 只在第一关显示
+     */
+    private void drawHighlandArea(Canvas canvas) {
+        if (gameEngine == null || !gameEngine.hasHighlandArea()) return;
 
+        float[] highlandRect = gameEngine.getHighlandScreenRect();
+        if (highlandRect == null || highlandRect.length < 4) return;
+
+        // 设置红色细点划线样式
+        paint.setColor(Color.RED);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(2f);
+
+        // 创建点划线效果：10像素实线，5像素空白
+        android.graphics.DashPathEffect dashEffect = new android.graphics.DashPathEffect(
+                new float[]{10f, 5f}, 0f);
+        paint.setPathEffect(dashEffect);
+
+        // 绘制矩形边框
+        float left = highlandRect[0];
+        float top = highlandRect[1];
+        float right = highlandRect[2];
+        float bottom = highlandRect[3];
+
+        canvas.drawRect(left, top, right, bottom, paint);
+
+        // 重置画笔效果，避免影响其他绘制
+        paint.setPathEffect(null);
+        paint.setStyle(Paint.Style.FILL);
+
+        // 可选：绘制高地标签
+        paint.setColor(Color.RED);
+        paint.setTextSize(20f);
+        canvas.drawText("高地 - 移速降低20%", left + 10, top - 10, paint);
+    }
     // =====================================================================
     // 辅助绘制方法
     // =====================================================================

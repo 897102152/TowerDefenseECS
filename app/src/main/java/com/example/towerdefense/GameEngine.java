@@ -74,7 +74,10 @@ public class GameEngine {
     private boolean tutorialInterrupted = false;
     private TutorialState interruptedState = null;
     private String interruptedMessage = "";
-
+    // ========== 高地区域相关属性 ==========
+    private float[] highlandArea = new float[]{0.25f, 0.35f, 0.55f, 0.9f}; // 左上x, 左上y, 右下x, 右下y
+    private float[] highlandScreenRect = new float[4]; // 屏幕坐标下的高地矩形
+    private float highlandSpeedMultiplier = 0.8f; // 高地内移速降至80%
 
     // =====================================================================
     // 接口定义
@@ -213,8 +216,15 @@ public class GameEngine {
         // 根据关卡设置最大允许通过的敌人数量
         if (levelId == 0) { // 教学关
             maxEnemiesAllowed = 20;
+            highlandArea = null; // 教学关没有高地
+        } else if (levelId == 1) { // 第一关
+            maxEnemiesAllowed = 10;
+            // 只在第一关设置高地区域
+            highlandArea = new float[]{0.25f, 0.35f, 0.55f, 0.9f}; // 左上x, 左上y, 右下x, 右下y
+            System.out.println("GameEngine: 第一关 - 启用高地区域减速效果");
         } else {
             maxEnemiesAllowed = 10; // 其他关卡默认值
+            highlandArea = null; // 其他关卡没有高地
         }
 
         // 初始化关卡系统
@@ -746,6 +756,11 @@ public class GameEngine {
 
         System.out.println("GameEngine: 屏幕尺寸设置为 " + width + "x" + height);
 
+        // 只在有高地区域的关卡计算屏幕坐标
+        if (highlandArea != null) {
+            calculateHighlandScreenRect();
+        }
+
         // 验证路径转换
         validatePathCoordinates();
 
@@ -763,6 +778,7 @@ public class GameEngine {
             System.out.println("GameEngine: MovementSystem为null！");
         }
     }
+
 
     /**
      * 验证路径坐标转换
@@ -801,7 +817,59 @@ public class GameEngine {
         System.err.println("GameEngine: 警告！找不到路径 " + pathTag + "，使用默认起点");
         return new float[]{100, 100};
     }
+    //=====================level01特有，高地区域检查===================================
+    /**
+     * 计算高地区域的屏幕坐标
+     */
+    private void calculateHighlandScreenRect() {
+        if (highlandArea == null) {
+            highlandScreenRect = null;
+            return;
+        }
 
+        highlandScreenRect = new float[4];
+        highlandScreenRect[0] = screenWidth * highlandArea[0];  // 左上x
+        highlandScreenRect[1] = screenHeight * highlandArea[1]; // 左上y
+        highlandScreenRect[2] = screenWidth * highlandArea[2];  // 右下x
+        highlandScreenRect[3] = screenHeight * highlandArea[3]; // 右下y
+
+        System.out.println("GameEngine: 高地区域屏幕坐标 - 左上(" + highlandScreenRect[0] + "," + highlandScreenRect[1] +
+                "), 右下(" + highlandScreenRect[2] + "," + highlandScreenRect[3] + ")");
+    }
+
+    /**
+     * 检查位置是否在高地区域内
+     */
+    public boolean isInHighlandArea(float x, float y) {
+        // 如果没有高地区域，直接返回false
+        if (highlandArea == null || highlandScreenRect == null) {
+            return false;
+        }
+
+        return x >= highlandScreenRect[0] && x <= highlandScreenRect[2] &&
+                y >= highlandScreenRect[1] && y <= highlandScreenRect[3];
+    }
+
+    /**
+     * 获取高地减速倍率
+     */
+    public float getHighlandSpeedMultiplier() {
+        return highlandSpeedMultiplier;
+    }
+
+    /**
+     * 获取高地区域屏幕坐标（用于绘制）
+     */
+    public float[] getHighlandScreenRect() {
+        return highlandScreenRect;
+    }
+
+    /**
+     * 检查当前关卡是否有高地区域
+     */
+    public boolean hasHighlandArea() {
+        return highlandArea != null;
+    }
     // =====================================================================
     // 系统状态检查和调试
     // =====================================================================
