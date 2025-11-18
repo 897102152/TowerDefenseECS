@@ -72,6 +72,17 @@ public class GameView extends View {
     private Drawable backgroundDrawable;
     private boolean showBackground = false;
     private int currentLevelId = -1;
+    // ========== 抛射体矢量图资源 ==========
+    private Drawable antitankProjectileDrawable;
+    private Drawable artilleryProjectileDrawable;
+
+    // ========== 抛射体图标尺寸控制 ==========
+    private int projectileIconSize ;
+
+    // ========== 反坦克手雷旋转相关 ==========
+    private long lastUpdateTime = 0;
+    private float antitankRotation = 0f;
+    private static final float ANTITANK_ROTATION_SPEED = 2f; // 旋转速度，值越小越慢
     // =====================================================================
     // 构造函数和初始化
     // =====================================================================
@@ -112,6 +123,7 @@ public class GameView extends View {
         // 加载矢量图资源
         loadVectorDrawables();
         loadTowerVectorDrawables();
+        loadProjectileVectorDrawables();
     }
 
     // =====================================================================
@@ -127,27 +139,33 @@ public class GameView extends View {
 
         // 设置防御塔图标大小等于网格大小
         towerIconSize = gridSize;
-        System.out.println("GameView: 防御塔图标大小设置为网格大小: " + towerIconSize + "px");
 
         // 根据屏幕尺寸调整敌人图标大小
         enemyIconSize = Math.min(w, h) / 15;
         enemyIconSize = Math.max(40, Math.min(enemyIconSize, 80));
 
+        // 固定抛射体图标大小，确保图像完整显示
+        projectileIconSize = 10; // 固定为40像素
+
         // 重新设置Drawable边界
         updateDrawableBounds();
+        updateProjectileDrawableBounds();
 
         // 更新背景图尺寸
         if (showBackground && backgroundDrawable != null) {
             backgroundDrawable.setBounds(0, 0, w, h);
             System.out.println("GameView: 背景图尺寸更新为: " + w + "x" + h);
         }
-        // 加载防御塔矢量图
+
+        // 重新加载防御塔和抛射体矢量图
         loadTowerVectorDrawables();
+        loadProjectileVectorDrawables();
 
         System.out.println("GameView: 屏幕尺寸变化 " + w + "x" + h);
         System.out.println("GameView: 网格大小 " + gridSize + "px");
         System.out.println("GameView: 敌人图标大小 " + enemyIconSize + "px");
         System.out.println("GameView: 防御塔图标大小 " + towerIconSize + "px");
+        System.out.println("GameView: 抛射体图标大小 " + projectileIconSize + "px");
 
         if (gameEngine != null) {
             gameEngine.setScreenSize(w, h);
@@ -244,7 +262,100 @@ public class GameView extends View {
         if (infantryDrawable != null) infantryDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
         if (armourDrawable != null) armourDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
     }
+    /**
+     * 加载抛射体矢量图资源
+     */
+    private void loadProjectileVectorDrawables() {
+        System.out.println("GameView: 开始加载抛射体矢量图");
 
+        try {
+            // 加载反坦克手雷图像
+            antitankProjectileDrawable = getContext().getDrawable(R.drawable.anti_tank_projectile);
+            if (antitankProjectileDrawable != null) {
+                // 获取原始宽高比
+                int intrinsicWidth = antitankProjectileDrawable.getIntrinsicWidth();
+                int intrinsicHeight = antitankProjectileDrawable.getIntrinsicHeight();
+
+                if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                    float aspectRatio = (float) intrinsicWidth / intrinsicHeight;
+                    // 设置基于宽高比的尺寸
+                    int width = projectileIconSize;
+                    int height = (int) (projectileIconSize / aspectRatio);
+                    antitankProjectileDrawable.setBounds(0, 0, width, height);
+                    System.out.println("GameView: 反坦克手雷图像加载成功，尺寸: " + width + "x" + height + " (宽高比: " + aspectRatio + ")");
+                } else {
+                    // 备用方案：使用固定尺寸
+                    antitankProjectileDrawable.setBounds(0, 0, projectileIconSize, projectileIconSize);
+                    System.out.println("GameView: 反坦克手雷图像使用默认尺寸");
+                }
+            } else {
+                System.err.println("GameView: 反坦克手雷图像加载失败");
+            }
+
+            // 加载炮兵炮弹图像
+            artilleryProjectileDrawable = getContext().getDrawable(R.drawable.artillery_projectile);
+            if (artilleryProjectileDrawable != null) {
+                // 获取原始宽高比
+                int intrinsicWidth = artilleryProjectileDrawable.getIntrinsicWidth();
+                int intrinsicHeight = artilleryProjectileDrawable.getIntrinsicHeight();
+
+                if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                    float aspectRatio = (float) intrinsicWidth / intrinsicHeight;
+                    // 设置基于宽高比的尺寸
+                    int width = projectileIconSize;
+                    int height = (int) (projectileIconSize / aspectRatio);
+                    artilleryProjectileDrawable.setBounds(0, 0, width, height);
+                    System.out.println("GameView: 炮兵炮弹图像加载成功，尺寸: " + width + "x" + height + " (宽高比: " + aspectRatio + ")");
+                } else {
+                    // 备用方案：使用固定尺寸
+                    artilleryProjectileDrawable.setBounds(0, 0, projectileIconSize, projectileIconSize);
+                    System.out.println("GameView: 炮兵炮弹图像使用默认尺寸");
+                }
+            } else {
+                System.err.println("GameView: 炮兵炮弹图像加载失败");
+            }
+
+            System.out.println("GameView: 抛射体矢量图加载完成");
+        } catch (Exception e) {
+            System.err.println("GameView: 加载抛射体矢量图失败: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 更新抛射体Drawable边界
+     */
+    private void updateProjectileDrawableBounds() {
+        // 反坦克手雷
+        if (antitankProjectileDrawable != null) {
+            int intrinsicWidth = antitankProjectileDrawable.getIntrinsicWidth();
+            int intrinsicHeight = antitankProjectileDrawable.getIntrinsicHeight();
+            if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                float aspectRatio = (float) intrinsicWidth / intrinsicHeight;
+                int width = projectileIconSize;
+                int height = (int) (projectileIconSize / aspectRatio);
+                antitankProjectileDrawable.setBounds(0, 0, width, height);
+            } else {
+                antitankProjectileDrawable.setBounds(0, 0, projectileIconSize, projectileIconSize);
+            }
+        }
+
+        // 炮兵炮弹
+        if (artilleryProjectileDrawable != null) {
+            int intrinsicWidth = artilleryProjectileDrawable.getIntrinsicWidth();
+            int intrinsicHeight = artilleryProjectileDrawable.getIntrinsicHeight();
+            if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                float aspectRatio = (float) intrinsicWidth / intrinsicHeight;
+                int width = projectileIconSize;
+                int height = (int) (projectileIconSize / aspectRatio);
+                artilleryProjectileDrawable.setBounds(0, 0, width, height);
+            } else {
+                artilleryProjectileDrawable.setBounds(0, 0, projectileIconSize, projectileIconSize);
+            }
+        }
+
+        System.out.println("GameView: 抛射体Drawable边界已更新，保持原始宽高比");
+    }
     // =====================================================================
     // 网格系统相关方法
     // =====================================================================
@@ -547,105 +658,196 @@ public class GameView extends View {
     }
 
     /**
-     * 绘制抛射体 - 根据防御塔类型显示不同的弹道外观
+     * 绘制抛射体 - 根据类型使用不同的绘制方式
      */
     private void drawProjectile(Canvas canvas, Entity projectile, Transform transform) {
         Projectile projectileComp = projectile.getComponent(Projectile.class);
 
         if (projectileComp != null) {
-            // 根据防御塔类型设置不同的弹道外观
             switch (projectileComp.towerType) {
                 case Infantry:
-                    // 弓箭塔：绿色箭头
-                    drawinfantryProjectile(canvas, transform, Color.GREEN);
+                    // 步兵：绘制黄色细长矩形
+                    drawInfantryProjectile(canvas, transform, projectileComp);
                     break;
 
                 case Anti_tank:
-                    // 炮塔：红色炮弹
-                    drawantitankProjectile(canvas, transform, Color.RED);
+                    // 反坦克兵：使用SVG图像并旋转
+                    drawAntitankProjectile(canvas, transform, projectileComp);
                     break;
 
                 case Artillery:
-                    // 法师塔：蓝色魔法球
-                    drawartilleryProjectile(canvas, transform, Color.BLUE);
+                    // 炮兵：使用SVG图像，正上方为飞行方向
+                    drawArtilleryProjectile(canvas, transform, projectileComp);
                     break;
 
                 default:
-                    // 默认弹道：白色圆形
-                    paint.setColor(Color.WHITE);
-                    canvas.drawCircle(transform.x, transform.y, 5f, paint);
+                    // 默认：白色圆形
+                    drawFallbackProjectile(canvas, transform);
                     break;
             }
         } else {
-            // 如果没有弹道组件，绘制默认弹道
-            paint.setColor(Color.WHITE);
-            canvas.drawCircle(transform.x, transform.y, 5f, paint);
+            drawFallbackProjectile(canvas, transform);
         }
     }
 
     /**
-     * 绘制弓箭塔的箭头弹道
+     * 绘制步兵子弹 - 黄色细长矩形
      */
-    private void drawinfantryProjectile(Canvas canvas, Transform transform, int color) {
-        paint.setColor(color);
+    private void drawInfantryProjectile(Canvas canvas, Transform transform, Projectile projectile) {
+        paint.setColor(Color.YELLOW);
         paint.setStyle(Paint.Style.FILL);
 
-        // 绘制箭头主体（细长矩形）
-        float arrowLength = 15f;
-        float arrowWidth = 3f;
+        // 绘制细长矩形（水平方向）
+        float length = 20f;  // 长度
+        float width = 4f;    // 宽度
 
-        // 计算弹道方向（如果需要可以添加方向计算）
-        // 暂时绘制为水平方向的箭头
+        canvas.drawRect(
+                transform.x - length/2, transform.y - width/2,
+                transform.x + length/2, transform.y + width/2,
+                paint
+        );
 
-        // 绘制箭头线
-        paint.setStrokeWidth(arrowWidth);
-        canvas.drawLine(transform.x - arrowLength/2, transform.y,
-                transform.x + arrowLength/2, transform.y, paint);
-
-        // 绘制箭头头部
-        float headSize = 4f;
-        canvas.drawCircle(transform.x + arrowLength/2, transform.y, headSize, paint);
+        // 添加头部尖角效果
+        paint.setColor(Color.WHITE);
+        canvas.drawCircle(transform.x + length/2, transform.y, width/2, paint);
     }
 
     /**
-     * 绘制炮塔的炮弹弹道
+     * 绘制反坦克手雷 - 使用SVG图像并旋转，保持宽高比
      */
-    private void drawantitankProjectile(Canvas canvas, Transform transform, int color) {
-        paint.setColor(color);
-        paint.setStyle(Paint.Style.FILL);
+    private void drawAntitankProjectile(Canvas canvas, Transform transform, Projectile projectile) {
+        if (antitankProjectileDrawable != null) {
+            try {
+                // 更新旋转角度（基于时间）
+                updateRotation();
 
-        // 绘制圆形炮弹
-        float radius = 6f;
-        canvas.drawCircle(transform.x, transform.y, radius, paint);
+                // 获取Drawable的实际尺寸
+                int drawableWidth = antitankProjectileDrawable.getBounds().width();
+                int drawableHeight = antitankProjectileDrawable.getBounds().height();
 
-        // 添加炮弹高光效果
-        paint.setColor(Color.WHITE);
-        canvas.drawCircle(transform.x - radius/3, transform.y - radius/3, radius/3, paint);
+                // 保存画布状态
+                canvas.save();
+
+                // 移动到抛射体位置并旋转
+                canvas.translate(transform.x, transform.y);
+                canvas.rotate(antitankRotation);
+
+                // 使用实际尺寸计算绘制位置（使图像中心与抛射体位置对齐）
+                int left = -drawableWidth / 2;
+                int top = -drawableHeight / 2;
+
+                // 设置Drawable边界并绘制
+                antitankProjectileDrawable.setBounds(
+                        left, top,
+                        left + drawableWidth,
+                        top + drawableHeight
+                );
+                antitankProjectileDrawable.draw(canvas);
+
+                // 恢复画布状态
+                canvas.restore();
+
+            } catch (Exception e) {
+                System.err.println("GameView: 绘制反坦克手雷时发生异常: " + e.getMessage());
+                drawFallbackProjectile(canvas, transform);
+            }
+        } else {
+            // 备用：红色圆形
+            paint.setColor(Color.RED);
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawCircle(transform.x, transform.y, 6f, paint);
+        }
     }
 
     /**
-     * 绘制法师塔的魔法弹道
+     * 绘制炮兵炮弹 - 使用SVG图像，保持宽高比
      */
-    private void drawartilleryProjectile(Canvas canvas, Transform transform, int color) {
-        // 绘制魔法球外圈
-        paint.setColor(color);
-        paint.setStyle(Paint.Style.FILL);
-        float outerRadius = 8f;
-        canvas.drawCircle(transform.x, transform.y, outerRadius, paint);
+    private void drawArtilleryProjectile(Canvas canvas, Transform transform, Projectile projectile) {
+        if (artilleryProjectileDrawable != null) {
+            try {
+                // 获取Drawable的实际尺寸
+                int drawableWidth = artilleryProjectileDrawable.getBounds().width();
+                int drawableHeight = artilleryProjectileDrawable.getBounds().height();
 
-        // 绘制魔法球内圈（发光效果）
-        paint.setColor(Color.WHITE);
-        float innerRadius = 4f;
-        canvas.drawCircle(transform.x, transform.y, innerRadius, paint);
+                // 保存画布状态
+                canvas.save();
 
-        // 绘制魔法效果（简单的星光效果）
-        paint.setColor(Color.argb(150, 200, 200, 255));
-        float sparkleLength = 3f;
-        canvas.drawLine(transform.x - outerRadius, transform.y, transform.x - outerRadius - sparkleLength, transform.y, paint);
-        canvas.drawLine(transform.x + outerRadius, transform.y, transform.x + outerRadius + sparkleLength, transform.y, paint);
-        canvas.drawLine(transform.x, transform.y - outerRadius, transform.x, transform.y - outerRadius - sparkleLength, paint);
-        canvas.drawLine(transform.x, transform.y + outerRadius, transform.x, transform.y + outerRadius + sparkleLength, paint);
+                // 移动到抛射体位置
+                canvas.translate(transform.x, transform.y);
+
+                // 计算飞行方向角度
+                float angle = calculateProjectileAngle(projectile);
+                canvas.rotate(angle);
+
+                // 使用实际尺寸计算绘制位置（使图像中心与抛射体位置对齐）
+                int left = -drawableWidth / 2;
+                int top = -drawableHeight / 2;
+
+                // 设置Drawable边界并绘制
+                artilleryProjectileDrawable.setBounds(
+                        left, top,
+                        left + drawableWidth,
+                        top + drawableHeight
+                );
+                artilleryProjectileDrawable.draw(canvas);
+
+                // 恢复画布状态
+                canvas.restore();
+
+            } catch (Exception e) {
+                System.err.println("GameView: 绘制炮兵炮弹时发生异常: " + e.getMessage());
+                drawFallbackProjectile(canvas, transform);
+            }
+        } else {
+            // 备用：蓝色圆形
+            paint.setColor(Color.BLUE);
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawCircle(transform.x, transform.y, 8f, paint);
+        }
     }
+
+    /**
+     * 计算抛射体飞行方向角度
+     */
+    private float calculateProjectileAngle(Projectile projectile) {
+        // 这里可以根据抛射体的速度向量计算实际飞行方向
+        // 暂时返回0度（正上方），你可以根据实际需要修改
+        return 0f;
+    }
+
+    /**
+     * 备用抛射体绘制方案
+     */
+    private void drawFallbackProjectile(Canvas canvas, Transform transform) {
+        paint.setColor(Color.WHITE);
+        paint.setStyle(Paint.Style.FILL);
+        canvas.drawCircle(transform.x, transform.y, 5f, paint);
+    }
+
+    /**
+     * 更新反坦克手雷的旋转角度
+     */
+    private void updateRotation() {
+        long currentTime = System.currentTimeMillis();
+
+        if (lastUpdateTime == 0) {
+            lastUpdateTime = currentTime;
+            return;
+        }
+
+        // 计算时间差（毫秒）
+        long deltaTime = currentTime - lastUpdateTime;
+        lastUpdateTime = currentTime;
+
+        // 根据时间差更新旋转角度（控制旋转速度）
+        antitankRotation += (deltaTime * ANTITANK_ROTATION_SPEED) / 16f;
+
+        // 保持角度在0-360度范围内
+        if (antitankRotation >= 360f) {
+            antitankRotation -= 360f;
+        }
+    }
+
     /**
      * 绘制敌人类型信息
      */
