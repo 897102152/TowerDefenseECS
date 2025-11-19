@@ -1398,6 +1398,9 @@ public class GameView extends View {
                 case 1: // 第一关
                     drawableId = R.drawable.map1;
                     break;
+                case 2: // 第一关
+                    drawableId = R.drawable.map2;
+                    break;
                 default:
                     drawableId = R.drawable.map0; // 默认
             }

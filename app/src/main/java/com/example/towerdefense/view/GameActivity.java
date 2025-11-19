@@ -1549,6 +1549,27 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 btnResume.setVisibility(View.GONE);
             }
 
+            // 显示/隐藏下一关按钮（核心修改：增加最后一关判断）
+            Button btnNextLevel = dialogView.findViewById(R.id.btnNextLevel);
+            if (btnNextLevel != null) {
+                // 判断当前是否为最后一关（第二关，currentLevelId=1）
+                if (currentLevelId >= 2) { // 因为只有两关（0=教程关，1=第一关，2=第二关）
+                    // 最后一关：隐藏下一关按钮
+                    btnNextLevel.setVisibility(View.GONE);
+                } else {
+                    // 非最后一关：显示下一关按钮并设置文本
+                    btnNextLevel.setVisibility(View.VISIBLE);
+                    String nextLevelName = getNextLevelName(currentLevelId);
+                    btnNextLevel.setText("进入" + nextLevelName);
+
+                    // 绑定下一关按钮事件
+                    btnNextLevel.setOnClickListener(v -> {
+                        gameWinDialog.dismiss();
+                        startNextLevel();
+                    });
+                }
+            }
+
             // 设置按钮事件
             setupGameWinMenuButtons(dialogView, gameWinDialog);
 
@@ -1571,6 +1592,56 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             dialog.dismiss();
             returnToMainMenu();
         });
+    }
+
+    /**
+     * 进入下一关
+     */
+    private void startNextLevel() {
+        int nextLevelId = currentLevelId + 1;
+
+        // 检查下一关是否已解锁（可根据实际需求修改解锁规则）
+        if (isLevelUnlocked(nextLevelId)) {
+            // 停止当前游戏引擎
+            if (gameEngine != null) {
+                gameEngine.stopGame();
+            }
+
+            // 跳转到下一关（复用当前Activity，重新初始化游戏）
+            currentLevelId = nextLevelId;
+            currentLevelName = getNextLevelName(currentLevelId - 1);
+
+            // 重新初始化游戏
+            initializeGame();
+        } else {
+            // 下一关未解锁，提示并返回主菜单
+            Toast.makeText(this, "下一关未解锁！", Toast.LENGTH_SHORT).show();
+            returnToMainMenu();
+        }
+    }
+
+    /**
+     * 根据当前关卡ID获取下一关名称
+     */
+    private String getNextLevelName(int currentLevelId) {
+        switch (currentLevelId) {
+            case 0: // 教程关
+                return "第一关";
+            case 1: // 第一关
+                return "第二关";
+
+            default:
+                return "返回主菜单";
+        }
+    }
+
+    /**
+     * 检查关卡是否解锁（默认按顺序解锁，可扩展自定义规则）
+     */
+    private boolean isLevelUnlocked(int levelId) {
+        // 示例：教程关（0）解锁后可进1关，1关解锁后可进2关，以此类推
+        // 可修改为通过SharedPreferences保存解锁状态
+        return levelId <= 3; // 暂时开放前3关，可根据实际关卡数量调整
     }
 
 }

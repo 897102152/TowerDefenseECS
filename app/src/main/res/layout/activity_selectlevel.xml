@@ -55,4 +55,16 @@
         android:layout_marginStart="20dp"
         />
 
+    <Button
+        android:id="@+id/btn_level02"
+        android:layout_width="200dp"
+        android:layout_height="50dp"
+        android:text="@string/level_02"
+        android:textSize="20sp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btn_level01"
+        android:layout_marginTop="160dp"
+        android:layout_marginStart="20dp"
+        />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
