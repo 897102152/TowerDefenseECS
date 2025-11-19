@@ -10,12 +10,14 @@ import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Tower;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Path;
+import com.example.towerdefense.components.Health;
 import com.example.towerdefense.systems.MovementSystem;
 import com.example.towerdefense.systems.AttackSystem;
 import com.example.towerdefense.systems.SpawnSystem;
 import com.example.towerdefense.systems.LevelSystem;
 import com.example.towerdefense.managers.ResourceManager;
 
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.List;
 
@@ -48,7 +50,9 @@ public class GameEngine {
 
     // ========== 资源管理 ==========
     private final ResourceManager resourceManager;
-
+    // ========== 空军支援相关属性 ==========
+    private int airSupportCounter = 0;
+    private final int AIR_SUPPORT_THRESHOLD = 10;
     // ========== 上下文引用 ==========
     private final Context context;
 
@@ -97,6 +101,7 @@ public class GameEngine {
         // 新增：高地状态变化回调
         void onHighlandStatusChanged(boolean isControlled, int enemyCount);
         void onHighlandEnemyCountUpdated(int enemyCount);
+        void onAirSupportStatusUpdated(int counter, int threshold); // 新增：空军支援状态更新
     }
 
     // =====================================================================
@@ -479,7 +484,7 @@ public class GameEngine {
             enemy.rewardGiven = true;
 
             System.out.println("GameEngine: 击败敌人 " + enemy.type + "，获得补给:" + enemy.reward);
-
+            incrementAirSupportCounter();
             // 通知监听器
             if (updateListener != null) {
                 updateListener.onEnemyDefeated(enemy, enemy.reward);
@@ -1253,7 +1258,171 @@ public class GameEngine {
             });
         }
     }
+    //================================空中支援逻辑==============================================
+    /**
+     * 执行空军轰炸
+     */
+    public void performAirStrike(float x, float y) {
+        if (airSupportCounter < AIR_SUPPORT_THRESHOLD) {
+            System.out.println("GameEngine: 空军支援次数不足");
+            return;
+        }
 
+        System.out.println("GameEngine: 执行空军轰炸，位置: (" + x + ", " + y + ")");
+
+        // 轰炸前检查敌人状态
+        System.out.println("💥 GameEngine: === 轰炸前敌人状态 ===");
+       //debugEnemyStatus();
+
+        // 计算轰炸区域
+        int gridSize = 60; // 默认网格大小
+        if (screenWidth > 0) {
+            gridSize = (int) (screenWidth * 0.08f);
+            gridSize = Math.max(30, Math.min(gridSize, 100));
+        }
+
+        float left = x - 2 * gridSize;
+        float right = x + 3 * gridSize; // 共5格宽度
+        float top = 0;
+        float bottom = screenHeight;
+
+        System.out.println("GameEngine: 轰炸区域 - 左:" + left + " 右:" + right + " 上:" + top + " 下:" + bottom);
+
+        // 对轰炸区域内的敌人造成99999点伤害（秒杀）
+        dealDamageToEnemiesInArea(left, top, right, bottom, 99999);
+
+        // 轰炸后检查敌人状态
+        System.out.println("💥 GameEngine: === 轰炸后敌人状态 ===");
+       // debugEnemyStatus();
+
+        // 重置计数器
+        airSupportCounter = 0;
+
+        // 通知UI更新
+        if (updateListener != null) {
+            updateListener.onResourcesUpdated(
+                    resourceManager.getManpower(),
+                    resourceManager.getSupply()
+            );
+        }
+
+        System.out.println("GameEngine: 空军轰炸执行完成");
+    }
+
+    /**
+     * 对指定区域内的敌人造成伤害
+     */
+    private void dealDamageToEnemiesInArea(float left, float top, float right, float bottom, int damage) {
+        List<Entity> enemies = world.getEntitiesWithComponent(Enemy.class);
+        int affectedCount = 0;
+        int totalEnemies = enemies.size();
+
+        System.out.println("💥 GameEngine: 开始处理轰炸区域内的敌人");
+        System.out.println("💥 GameEngine: 轰炸区域: 左" + left + " 右" + right + " 上" + top + " 下" + bottom);
+        System.out.println("💥 GameEngine: 总敌人数量: " + totalEnemies);
+        System.out.println("💥 GameEngine: 使用伤害值: " + damage);
+
+        for (Entity enemy : enemies) {
+            Transform transform = enemy.getComponent(Transform.class);
+            if (transform != null) {
+                boolean inArea = transform.x >= left && transform.x <= right &&
+                        transform.y >= top && transform.y <= bottom;
+
+                System.out.println("💥 GameEngine: 检查敌人 - 位置: (" + transform.x + ", " + transform.y + "), 在区域内: " + inArea);
+
+                if (inArea) {
+                    Enemy enemyComp = enemy.getComponent(Enemy.class);
+                    Health health = enemy.getComponent(Health.class);
+
+                    if (health != null && enemyComp != null) {
+                        System.out.println("💥 GameEngine: 轰炸前敌人生命值: " + health.current + "/" + health.max);
+
+                        // 使用伤害值而不是直接设置为0
+                        health.current -= damage;
+                        if (health.current < 0) {
+                            health.current = 0;
+                        }
+
+                        System.out.println("💥 GameEngine: 轰炸后敌人生命值: " + health.current + "/" + health.max);
+                        affectedCount++;
+
+                        // 如果敌人死亡，触发被击败逻辑
+                        if (health.current <= 0 && !enemyComp.rewardGiven) {
+                            System.out.println("💥 GameEngine: 敌人被空袭击杀，触发被击败逻辑");
+                            onEnemyDefeated(enemyComp);
+                        } else if (health.current <= 0) {
+                            System.out.println("💥 GameEngine: 敌人被空袭击杀，但奖励已发放");
+                        }
+                    } else {
+                        System.out.println("💥 GameEngine: 错误 - 敌人的Health或Enemy组件为null");
+                    }
+                }
+            } else {
+                System.out.println("💥 GameEngine: 错误 - 敌人的Transform组件为null");
+            }
+        }
+
+        System.out.println("💥 GameEngine: 空军轰炸影响 " + affectedCount + " 个敌人");
+        // 清理死亡的敌人
+        cleanupDeadEnemies();
+        // 额外检查：轰炸后剩余的敌人数量
+        int remainingEnemies = world.getEntitiesWithComponent(Enemy.class).size();
+        System.out.println("💥 GameEngine: 轰炸后剩余敌人数量: " + remainingEnemies);
+    }
+    // 添加获取空军支援状态的方法
+    public int getAirSupportCounter() {
+        return airSupportCounter;
+    }
+
+    public int getAirSupportThreshold() {
+        return AIR_SUPPORT_THRESHOLD;
+    }
+
+    public boolean isAirSupportReady() {
+        return airSupportCounter >= AIR_SUPPORT_THRESHOLD;
+    }
+
+
+    /**
+     * 增加空军支援计数器（由AttackSystem调用）
+     */
+    public void
+    incrementAirSupportCounter() {
+            airSupportCounter++;
+            System.out.println("GameEngine: 空军支援计数器: " + airSupportCounter + "/" + AIR_SUPPORT_THRESHOLD);
+
+            // 通知UI更新（如果需要）
+            if (updateListener != null) {
+                updateListener.onResourcesUpdated(
+                        resourceManager.getManpower(),
+                        resourceManager.getSupply()
+                );
+            }
+
+    }
+    /**
+     * 清理死亡的敌人
+     */
+    private void cleanupDeadEnemies() {
+        List<Entity> enemies = world.getEntitiesWithComponent(Enemy.class);
+        List<Entity> deadEnemies = new ArrayList<>();
+
+        for (Entity enemy : enemies) {
+            Health health = enemy.getComponent(Health.class);
+            if (health != null && health.current <= 0) {
+                deadEnemies.add(enemy);
+            }
+        }
+
+        for (Entity deadEnemy : deadEnemies) {
+            world.removeEntity(deadEnemy);
+            System.out.println("🧹 GameEngine: 清理死亡敌人");
+        }
+
+        if (!deadEnemies.isEmpty()) {
+            System.out.println("🧹 GameEngine: 共清理 " + deadEnemies.size() + " 个死亡敌人");
+        }
+    }
     // =====================================================================
     // Getter和Setter方法
     // =====================================================================

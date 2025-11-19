@@ -62,6 +62,11 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private View currentSelectedButton = null;
     private int defaultButtonColor = Color.GRAY;
     private int selectedButtonColor = Color.BLUE;
+    // ========== 空军支援相关属性 ==========
+    private Button btnAirSupport;
+    private int airSupportCounter = 0;
+    private final int AIR_SUPPORT_THRESHOLD = 10; // 击败10个敌人获得一次支援
+    private boolean isAirStrikeMode = false; // 是否处于空袭瞄准模式
 
     // =====================================================================
     // Activity生命周期方法
@@ -135,6 +140,13 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             hideSystemUI();
         }
     }
+    @Override
+    public void onAirSupportStatusUpdated(int counter, int threshold) {
+        runOnUiThread(() -> {
+            airSupportCounter = counter;
+            updateAirSupportButton();
+        });
+    }
     //================level Highland相关回调=======================================
     /**
      * 高地状态变化回调
@@ -177,6 +189,9 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     "击败" + getEnemyTypeName(enemy.type) + "，" + damageInfo,
                     "不同敌人对不同类型的伤害有不同抗性", true);
         }
+        // 增加空军支援计数器
+            incrementAirSupportCounter();
+
     }
 
     /**
@@ -290,6 +305,11 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         if (buildMenuLayout != null) {
             buildMenuLayout.setVisibility(View.GONE);
         }
+        // 重置空军支援
+        airSupportCounter = 0;
+        isAirStrikeMode = false;
+        updateAirSupportButton();
+        setButtonsEnabled(true);
     }
 
     /**
@@ -318,14 +338,30 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 查找并绑定视图组件
         gameView = findViewById(R.id.gameView);
 
-        // 设置 GameView 监听器 - 修复无限递归问题
+        // 设置 GameView 监听器
         if (gameView != null) {
             gameView.setGameViewListener(new GameView.GameViewListener() {
                 @Override
                 public void showGameMessage(String title, String message, String hint, boolean autoHide) {
-                    // 只在教程关卡显示消息
-                    if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    // 只在教程关卡显示消息，但空袭消息在所有关卡都显示
+                    if (gameEngine != null && (gameEngine.isTutorialLevel() || title.contains("空中支援"))) {
                         GameActivity.this.displayGameMessage(title, message, hint, autoHide);
+                    }
+                }
+
+                @Override
+                public void onAirStrikeRequested(float x, float y) {
+                    // 处理空袭请求
+                    performAirStrike(x, y);
+                }
+
+                @Override
+                public void onAirStrikeCompleted() {
+                    // 空袭动画完成，退出空袭模式
+                    System.out.println("🎯 GameActivity: onAirStrikeCompleted - 空袭动画完成");
+                    exitAirStrikeMode();
+                    if (gameView != null) {
+                        gameView.setAirStrikeMode(false);
                     }
                 }
             });
@@ -412,6 +448,26 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 初始状态：建造模式关闭
         setBuildMode(false);
+        // ========== 空军支援按钮 ==========
+        btnAirSupport = findViewById(R.id.btnAirSupport);
+        if (btnAirSupport != null) {
+            btnAirSupport.setOnClickListener(v -> {
+                if (isAirStrikeMode) {
+                    // 如果已经在空袭模式，点击取消
+                    exitAirStrikeMode();
+                    if (gameView != null) {
+                        gameView.setAirStrikeMode(false);
+                    }
+                } else if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+                    // 进入空袭瞄准模式
+                    enterAirStrikeMode();
+                    if (gameView != null) {
+                        gameView.setAirStrikeMode(true);
+                    }
+                }
+            });
+            btnAirSupport.setVisibility(View.VISIBLE);
+        }
     }
 
     /**
@@ -949,7 +1005,112 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             tvSupply.setText(String.valueOf(supply));
         }
     }
+    /**
+     * 进入空袭瞄准模式
+     */
+    private void enterAirStrikeMode() {
+        isAirStrikeMode = true;
 
+        // 提示用户点击屏幕进行轰炸
+        displayGameMessage("空中支援", "请点击屏幕选择轰炸区域", "点击后轰炸该区域", false);
+
+        // 关闭建造模式（如果开启）
+        if (isBuildMode) {
+            setBuildMode(false);
+        }
+
+        // 禁用其他按钮，防止干扰
+        //setButtonsEnabled(false);
+    }
+
+
+    /**
+     * 启用/禁用按钮
+     */
+    private void setButtonsEnabled(boolean enabled) {
+        if (btnStartGame != null) btnStartGame.setEnabled(enabled);
+        findViewById(R.id.btnBuildMode).setEnabled(enabled);
+        findViewById(R.id.btnSettings).setEnabled(enabled);
+
+        if (buildMenuLayout != null) {
+            for (int i = 0; i < buildMenuLayout.getChildCount(); i++) {
+                buildMenuLayout.getChildAt(i).setEnabled(enabled);
+            }
+        }
+    }
+
+    /**
+     * 更新空军支援按钮显示
+     */
+    private void updateAirSupportButton() {
+        if (btnAirSupport != null) {
+            String text = "空中支援\n" + airSupportCounter + "/" + AIR_SUPPORT_THRESHOLD;
+            btnAirSupport.setText(text);
+
+            // 如果处于空袭模式，按钮为红色
+            if (isAirStrikeMode) {
+                btnAirSupport.setBackgroundColor(Color.RED);
+                btnAirSupport.setTextColor(Color.WHITE);
+            }
+            // 如果达到阈值，按钮为绿色（就绪状态）
+            else if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+                btnAirSupport.setBackgroundColor(Color.GREEN);
+                btnAirSupport.setTextColor(Color.BLACK);
+            }
+            // 未就绪状态
+            else {
+                btnAirSupport.setBackgroundResource(R.drawable.floating_button_bg);
+                btnAirSupport.setTextColor(Color.WHITE);
+            }
+        }
+    }
+
+    /**
+     * 增加空军支援计数器
+     */
+    public void incrementAirSupportCounter() {
+
+            airSupportCounter++;
+            updateAirSupportButton();
+
+            // 如果达到阈值，提示玩家
+            if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+                displayGameMessage("空中支援就绪", "空中支援已准备就绪！", "点击空中支援按钮使用", true);
+            }
+
+    }
+    /**
+     * 执行空袭
+     */
+    public void performAirStrike(float x, float y) {
+        System.out.println("🎯 GameActivity: performAirStrike - 开始执行空袭");
+        System.out.println("🎯 GameActivity: 空袭位置: (" + x + ", " + y + ")");
+
+        // 注意：这里不立即退出空袭模式，因为动画还在播放
+        // 空袭模式将在动画结束后由GameView通知退出
+
+        if (gameEngine != null) {
+            gameEngine.performAirStrike(x, y);
+        } else {
+            System.out.println("🎯 GameActivity: 错误 - gameEngine为null");
+        }
+
+        System.out.println("🎯 GameActivity: performAirStrike - 伤害执行完成");
+    }
+
+    /**
+     * 退出空袭瞄准模式
+     */
+    private void exitAirStrikeMode() {
+        isAirStrikeMode = false;
+        hideGameMessage();
+        setButtonsEnabled(true);
+
+        // 更新按钮样式
+        updateAirSupportButton();
+
+        System.out.println("🎯 GameActivity: 退出空袭模式");
+    }
     // =====================================================================
     // 游戏结束处理
     // =====================================================================

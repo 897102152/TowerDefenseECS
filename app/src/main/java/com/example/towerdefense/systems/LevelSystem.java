@@ -206,13 +206,17 @@ public class LevelSystem extends ECSSystem {
 
         // 第二波 - 同时生成
         List<WaveConfig> wave2 = Arrays.asList(
-                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_A, 3, 2.0f),
-                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_B, 3, 2.0f)
+                new WaveConfig(Enemy.Type.Infantry, Path.PathTag.PATH_A, 3, 2.0f),
+                new WaveConfig(Enemy.Type.Infantry, Path.PathTag.PATH_B, 3, 2.0f)
         );
-
+        // 第三波 - 同时生成
+        List<WaveConfig> wave3 = Arrays.asList(
+                new WaveConfig(Enemy.Type.Armour, Path.PathTag.PATH_A, 1, 2.0f),
+                new WaveConfig(Enemy.Type.Armour, Path.PathTag.PATH_B, 1, 2.0f)
+        );
         trainingWaves.add(wave1);
         trainingWaves.add(wave2);
-
+        trainingWaves.add(wave3);
         levelWaveConfigs.put(0, new LevelWaveConfig(trainingWaves, 5.0f));
 
         // =========================================第一关波次配置================================================

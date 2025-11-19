@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.util.AttributeSet;
@@ -54,6 +55,8 @@ public class GameView extends View {
     // ========== 消息监听器 ==========
     public interface GameViewListener {
         void showGameMessage(String title, String message, String hint, boolean autoHide);
+        void onAirStrikeRequested(float x, float y);
+        void onAirStrikeCompleted();
     }
     private GameViewListener gameViewListener;
 
@@ -83,6 +86,20 @@ public class GameView extends View {
     private long lastUpdateTime = 0;
     private float antitankRotation = 0f;
     private static final float ANTITANK_ROTATION_SPEED = 2f; // 旋转速度，值越小越慢
+    // ========== 空军支援相关属性 ==========
+    private boolean isAirStrikeMode = false;
+    private boolean isAirStriking = false;
+    private float aircraftX; // 飞机的x坐标
+    private float aircraftY; // 飞机的y坐标（固定在上方）
+    private RectF bombArea; // 轰炸区域
+    private Paint bombAreaPaint;
+    private Drawable aircraftDrawable;
+    private int aircraftWidth = 100; // 飞机图像的宽度
+    private int aircraftHeight = 50; // 飞机图像的高度
+    private long airStrikeStartTime;
+    private static final long AIR_STRIKE_DURATION = 2000; // 动画持续2秒
+    private float airStrikeX; // 保存空袭的X坐标
+    private float airStrikeY; // 保存空袭的Y坐标
     // =====================================================================
     // 构造函数和初始化
     // =====================================================================
@@ -124,6 +141,12 @@ public class GameView extends View {
         loadVectorDrawables();
         loadTowerVectorDrawables();
         loadProjectileVectorDrawables();
+        // 初始化空军轰炸相关
+        bombAreaPaint = new Paint();
+        bombAreaPaint.setColor(Color.argb(100, 255, 0, 0)); // 红色半透明
+
+        // 加载飞机图像
+        loadAircraftDrawable();
     }
 
     // =====================================================================
@@ -208,6 +231,8 @@ public class GameView extends View {
 
         // 调试信息
         drawDebugInfo(canvas, world);
+        // 绘制空军轰炸（在最上层）
+        drawAirStrike(canvas);
     }
 
     // =====================================================================
@@ -356,6 +381,133 @@ public class GameView extends View {
 
         System.out.println("GameView: 抛射体Drawable边界已更新，保持原始宽高比");
     }
+    /**
+     * 加载飞机矢量图资源
+     */
+    private void loadAircraftDrawable() {
+        System.out.println("GameView: 开始加载飞机矢量图");
+
+        try {
+            aircraftDrawable = getContext().getDrawable(R.drawable.airforce);
+            if (aircraftDrawable != null) {
+                aircraftDrawable.setBounds(0, 0, aircraftWidth, aircraftHeight);
+                System.out.println("GameView: 飞机矢量图加载成功");
+            } else {
+                System.err.println("GameView: 飞机矢量图加载失败");
+            }
+        } catch (Exception e) {
+            System.err.println("GameView: 加载飞机矢量图失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 开始空军轰炸动画
+     */
+    public void startAirStrikeAnimation(float x, float y) {
+        System.out.println("🔥 GameView: startAirStrikeAnimation 开始 - 位置: (" + x + ", " + y + ")");
+        System.out.println("🔥 GameView: isAirStrikeMode = " + isAirStrikeMode + ", isAirStriking = " + isAirStriking);
+
+        isAirStriking = true;
+        airStrikeStartTime = System.currentTimeMillis();
+
+        // 保存轰炸位置，用于动画结束后执行伤害
+        this.airStrikeX = x;
+        this.airStrikeY = y;
+
+        // 计算轰炸区域
+        float left = x - 2 * gridSize;
+        float right = x + 3 * gridSize;
+        bombArea = new RectF(left, 0, right, getHeight());
+
+        // 飞机起始位置
+        aircraftX = getWidth();
+        aircraftY = getHeight() / 4;
+
+        System.out.println("🔥 GameView: 轰炸区域: " + bombArea);
+        System.out.println("🔥 GameView: 飞机起始位置: (" + aircraftX + ", " + aircraftY + ")");
+
+        // 开始动画
+        invalidate();
+        System.out.println("🔥 GameView: 已调用invalidate()，等待onDraw调用");
+    }
+
+    /**
+     * 绘制空军轰炸
+     */
+    private void drawAirStrike(Canvas canvas) {
+        if (!isAirStriking) {
+            System.out.println("🔥 GameView: drawAirStrike - 动画未激活，直接返回");
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        long elapsed = currentTime - airStrikeStartTime;
+
+        System.out.println("🔥 GameView: drawAirStrike - 已耗时: " + elapsed + "ms");
+
+        if (elapsed > AIR_STRIKE_DURATION) {
+            // 动画结束，执行空袭伤害
+            System.out.println("🔥 GameView: drawAirStrike - 动画结束，执行空袭伤害");
+            isAirStriking = false;
+            bombArea = null;
+
+            // 动画结束后执行空袭伤害
+            if (gameViewListener != null) {
+                System.out.println("🔥 GameView: 调用gameViewListener.onAirStrikeRequested");
+                gameViewListener.onAirStrikeRequested(airStrikeX, airStrikeY);
+
+                // 通知空袭完成
+                System.out.println("🔥 GameView: 调用gameViewListener.onAirStrikeCompleted");
+                gameViewListener.onAirStrikeCompleted();
+            }
+
+            return;
+        }
+
+        // 计算飞机位置
+        float progress = (float) elapsed / AIR_STRIKE_DURATION;
+        aircraftX = getWidth() * (1 - progress);
+
+        System.out.println("🔥 GameView: drawAirStrike - 进度: " + progress + ", 飞机位置: (" + aircraftX + ", " + aircraftY + ")");
+
+        // 绘制轰炸区域
+        if (bombArea != null) {
+            canvas.drawRect(bombArea, bombAreaPaint);
+            System.out.println("🔥 GameView: 绘制轰炸区域");
+        }
+
+        // 绘制飞机
+        if (aircraftDrawable != null) {
+            canvas.save();
+            canvas.translate(aircraftX, aircraftY);
+            aircraftDrawable.draw(canvas);
+            canvas.restore();
+            System.out.println("🔥 GameView: 绘制飞机");
+        }
+
+        // 继续动画
+        invalidate();
+        System.out.println("🔥 GameView: 调用invalidate()继续动画");
+    }
+    /**
+     * 设置空袭模式状态
+     */
+    public void setAirStrikeMode(boolean airStrikeMode) {
+        this.isAirStrikeMode = airStrikeMode;
+        // 如果退出空袭模式，确保动画状态也重置
+        if (!airStrikeMode) {
+            this.isAirStriking = false;
+            this.bombArea = null;
+        }
+        invalidate();
+    }
+
+    /**
+     * 检查是否正在播放空袭动画
+     */
+    public boolean isAirStriking() {
+        return isAirStriking;
+    }
     // =====================================================================
     // 网格系统相关方法
     // =====================================================================
@@ -429,7 +581,24 @@ public class GameView extends View {
         if (event.getAction() == MotionEvent.ACTION_DOWN && gameEngine != null) {
             float x = event.getX();
             float y = event.getY();
+            System.out.println("🖐️ GameView: 触摸事件 - 位置: (" + x + ", " + y + ")");
+            System.out.println("🖐️ GameView: 状态 - isAirStrikeMode: " + isAirStrikeMode + ", isAirStriking: " + isAirStriking + ", isBuildMode: " + isBuildMode);
 
+            // 首先检查是否处于空袭模式且不在动画播放中
+            if (isAirStrikeMode && !isAirStriking) {
+                System.out.println("🖐️ GameView: 空袭模式下点击，触发空袭动画");
+
+                // 开始动画（伤害将在动画结束后执行）
+                System.out.println("🖐️ GameView: 调用startAirStrikeAnimation");
+                startAirStrikeAnimation(x, y);
+
+                performClick();
+                return true;
+            } else if (isAirStrikeMode && isAirStriking) {
+                System.out.println("🖐️ GameView: 空袭动画播放中，忽略点击");
+                performClick();
+                return true;
+            }
             if (!isBuildMode) {
                 System.out.println("GameView: 建造模式未开启，无法进行操作");
                 showBuildModeRequiredMessage();
@@ -467,7 +636,10 @@ public class GameView extends View {
         }
         return super.onTouchEvent(event);
     }
-
+    // 提供getGridSize方法供外部访问
+    public int getGridSize() {
+        return gridSize;
+    }
     @Override
     public boolean performClick() {
         super.performClick();
