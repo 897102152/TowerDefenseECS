@@ -22,7 +22,8 @@ public class Enemy implements Component {
     public float speed;    // 移动速度（像素/秒）
     public int reward;     // 击败后奖励的金币数
     public int pathIndex;  // 当前路径点索引，用于路径跟踪
-
+    // 新增：标记是否被空袭击杀
+    public boolean killedByAirStrike = false;
     public Path.PathTag pathTag;
 
     // 新增：是否已发放奖励（避免重复发放）

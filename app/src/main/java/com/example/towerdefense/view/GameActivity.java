@@ -190,7 +190,13 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     "不同敌人对不同类型的伤害有不同抗性", true);
         }
         // 增加空军支援计数器
+        // 只有不是被空袭击杀的敌人才增加计数器
+        if (!enemy.killedByAirStrike) {
+            System.out.println("GameActivity: 敌人不是空袭击杀，增加计数器");
             incrementAirSupportCounter();
+        } else {
+            System.out.println("GameActivity: 敌人是空袭击杀，不增加计数器");
+        }
 
     }
 
@@ -363,6 +369,13 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     if (gameView != null) {
                         gameView.setAirStrikeMode(false);
                     }
+                }
+                @Override
+                public void onAirSupportCounterReset() {
+                    // 计数器重置
+                    System.out.println("🎯 GameActivity: onAirSupportCounterReset - 重置计数器");
+                    airSupportCounter = 0;
+                    updateAirSupportButton();
                 }
             });
         }
@@ -1047,21 +1060,29 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             String text = "空中支援\n" + airSupportCounter + "/" + AIR_SUPPORT_THRESHOLD;
             btnAirSupport.setText(text);
 
+            System.out.println("🎯 GameActivity: updateAirSupportButton - 计数器: " + airSupportCounter +
+                    "/" + AIR_SUPPORT_THRESHOLD + ", 空袭模式: " + isAirStrikeMode);
+
             // 如果处于空袭模式，按钮为红色
             if (isAirStrikeMode) {
                 btnAirSupport.setBackgroundColor(Color.RED);
                 btnAirSupport.setTextColor(Color.WHITE);
+                System.out.println("🎯 GameActivity: 按钮状态 - 空袭模式(红色)");
             }
             // 如果达到阈值，按钮为绿色（就绪状态）
             else if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
                 btnAirSupport.setBackgroundColor(Color.GREEN);
                 btnAirSupport.setTextColor(Color.BLACK);
+                System.out.println("🎯 GameActivity: 按钮状态 - 就绪状态(绿色)");
             }
             // 未就绪状态
             else {
                 btnAirSupport.setBackgroundResource(R.drawable.floating_button_bg);
                 btnAirSupport.setTextColor(Color.WHITE);
+                System.out.println("🎯 GameActivity: 按钮状态 - 未就绪(默认)");
             }
+        } else {
+            System.out.println("🎯 GameActivity: updateAirSupportButton - btnAirSupport为null");
         }
     }
 
@@ -1069,15 +1090,22 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      * 增加空军支援计数器
      */
     public void incrementAirSupportCounter() {
+        // 限制计数器最大值，达到阈值后不再增加
+        if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+            System.out.println("🎯 GameActivity: 计数器已达到最大值，不再增加");
+            return;
+        }
 
-            airSupportCounter++;
-            updateAirSupportButton();
+        airSupportCounter++;
+        System.out.println("🎯 GameActivity: incrementAirSupportCounter - 新计数器: " + airSupportCounter);
 
-            // 如果达到阈值，提示玩家
-            if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
-                displayGameMessage("空中支援就绪", "空中支援已准备就绪！", "点击空中支援按钮使用", true);
-            }
+        updateAirSupportButton();
 
+        // 如果达到阈值，提示玩家
+        if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+            System.out.println("🎯 GameActivity: 空军支援就绪！");
+            displayGameMessage("空中支援就绪", "空中支援已准备就绪！", "点击空中支援按钮使用", true);
+        }
     }
     /**
      * 执行空袭

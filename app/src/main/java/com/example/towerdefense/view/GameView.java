@@ -57,6 +57,7 @@ public class GameView extends View {
         void showGameMessage(String title, String message, String hint, boolean autoHide);
         void onAirStrikeRequested(float x, float y);
         void onAirStrikeCompleted();
+        void onAirSupportCounterReset();
     }
     private GameViewListener gameViewListener;
 
@@ -425,7 +426,11 @@ public class GameView extends View {
 
         System.out.println("🔥 GameView: 轰炸区域: " + bombArea);
         System.out.println("🔥 GameView: 飞机起始位置: (" + aircraftX + ", " + aircraftY + ")");
-
+        // 立即通知计数器清零
+        if (gameViewListener != null) {
+            System.out.println("🔥 GameView: 通知计数器清零");
+            gameViewListener.onAirSupportCounterReset();
+        }
         // 开始动画
         invalidate();
         System.out.println("🔥 GameView: 已调用invalidate()，等待onDraw调用");
@@ -436,7 +441,7 @@ public class GameView extends View {
      */
     private void drawAirStrike(Canvas canvas) {
         if (!isAirStriking) {
-            System.out.println("🔥 GameView: drawAirStrike - 动画未激活，直接返回");
+            //System.out.println("🔥 GameView: drawAirStrike - 动画未激活，直接返回");
             return;
         }
 
