@@ -95,8 +95,8 @@ public class GameView extends View {
     private RectF bombArea; // 轰炸区域
     private Paint bombAreaPaint;
     private Drawable aircraftDrawable;
-    private int aircraftWidth = 200; // 飞机图像的宽度
-    private int aircraftHeight = 100; // 飞机图像的高度
+    private int aircraftWidth = 579; // 飞机图像的宽度
+    private int aircraftHeight = 795; // 飞机图像的高度
     private long airStrikeStartTime;
     private static final long AIR_STRIKE_DURATION = 4000; // 动画持续2秒
     private float airStrikeX; // 保存空袭的X坐标
@@ -422,7 +422,7 @@ public class GameView extends View {
 
         // 飞机起始位置
         aircraftX = getWidth();
-        aircraftY = getHeight() / 2;
+        aircraftY = (float) getHeight() / 5;
 
         System.out.println("🔥 GameView: 轰炸区域: " + bombArea);
         System.out.println("🔥 GameView: 飞机起始位置: (" + aircraftX + ", " + aircraftY + ")");
