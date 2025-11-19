@@ -3,21 +3,21 @@ package com.example.towerdefense;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast;
 
 import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.ecs.Entity;
 import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Tower;
-import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Path;
+import com.example.towerdefense.components.Health;
 import com.example.towerdefense.systems.MovementSystem;
 import com.example.towerdefense.systems.AttackSystem;
 import com.example.towerdefense.systems.SpawnSystem;
 import com.example.towerdefense.systems.LevelSystem;
 import com.example.towerdefense.managers.ResourceManager;
 
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.List;
 
@@ -50,7 +50,9 @@ public class GameEngine {
 
     // ========== 资源管理 ==========
     private final ResourceManager resourceManager;
-
+    // ========== 空军支援相关属性 ==========
+    private int airSupportCounter = 0;
+    private final int AIR_SUPPORT_THRESHOLD = 10;
     // ========== 上下文引用 ==========
     private final Context context;
 
@@ -58,9 +60,9 @@ public class GameEngine {
     public enum TutorialState {
         WELCOME,
         RESOURCE_EXPLANATION,
-        BUILD_ARCHER_TOWER,
-        BUILD_CANNON_TOWER,
-        BUILD_MAGE_TOWER,
+        DEPLOY_INFANTRY,
+        DEPLOY_ANTI_TANK,
+        DEPLOY_ARTILLERY,
         WAITING_FOR_ENEMIES,
         COMPLETED
     }
@@ -99,6 +101,7 @@ public class GameEngine {
         // 新增：高地状态变化回调
         void onHighlandStatusChanged(boolean isControlled, int enemyCount);
         void onHighlandEnemyCountUpdated(int enemyCount);
+        void onAirSupportStatusUpdated(int counter, int threshold); // 新增：空军支援状态更新
     }
 
     // =====================================================================
@@ -484,7 +487,13 @@ public class GameEngine {
             enemy.rewardGiven = true;
 
             System.out.println("GameEngine: 击败敌人 " + enemy.type + "，获得补给:" + enemy.reward);
-
+            // 只有不是被空袭击杀的敌人才增加计数器
+            if (!enemy.killedByAirStrike) {
+                System.out.println("GameEngine: 敌人不是空袭击杀，增加计数器");
+                incrementAirSupportCounter();
+            } else {
+                System.out.println("GameEngine: 敌人是空袭击杀，不增加计数器");
+            }
             // 通知监听器
             if (updateListener != null) {
                 updateListener.onEnemyDefeated(enemy, enemy.reward);
@@ -558,24 +567,24 @@ public class GameEngine {
                 break;
 
             case RESOURCE_EXPLANATION:
-                tutorialState = TutorialState.BUILD_ARCHER_TOWER;
+                tutorialState = TutorialState.DEPLOY_INFANTRY;
                 System.out.println("GameEngine: 教程状态推进到 BUILD_ARCHER_TOWER");
                 if (updateListener != null) {
                     updateListener.onTutorialStepStarted(tutorialState, "请建造弓箭塔");
                 }
                 break;
 
-            case BUILD_ARCHER_TOWER:
+            case DEPLOY_INFANTRY:
                 // 等待玩家建造弓箭塔，这里不自动推进
                 System.out.println("GameEngine: BUILD_ARCHER_TOWER 状态，等待玩家建造");
                 break;
 
-            case BUILD_CANNON_TOWER:
+            case DEPLOY_ANTI_TANK:
                 // 等待玩家建造炮塔
                 System.out.println("GameEngine: BUILD_CANNON_TOWER 状态，等待玩家建造");
                 break;
 
-            case BUILD_MAGE_TOWER:
+            case DEPLOY_ARTILLERY:
                 // 等待玩家建造法师塔
                 System.out.println("GameEngine: BUILD_MAGE_TOWER 状态，等待玩家建造");
                 break;
@@ -602,10 +611,10 @@ public class GameEngine {
         System.out.println(" GameEngine: 当前正在建造防御塔type："+ towerType);
 
         switch (tutorialState) {
-            case BUILD_ARCHER_TOWER:
-                if (towerType == Tower.Type.ARCHER) {
+            case DEPLOY_INFANTRY:
+                if (towerType == Tower.Type.Infantry) {
                     towersBuilt++;
-                    tutorialState = TutorialState.BUILD_CANNON_TOWER;
+                    tutorialState = TutorialState.DEPLOY_ANTI_TANK;
                     // 直接推进教程，不通过消息系统
                     if (updateListener != null) {
                         updateListener.onTutorialStepStarted(tutorialState, "很好！现在请建造一个炮塔");
@@ -622,10 +631,10 @@ public class GameEngine {
                 }
                 break;
 
-            case BUILD_CANNON_TOWER:
-                if (towerType == Tower.Type.CANNON) {
+            case DEPLOY_ANTI_TANK:
+                if (towerType == Tower.Type.Anti_tank) {
                     towersBuilt++;
-                    tutorialState = TutorialState.BUILD_MAGE_TOWER;
+                    tutorialState = TutorialState.DEPLOY_ARTILLERY;
                     if (updateListener != null) {
                         updateListener.onTutorialStepStarted(tutorialState, "不错！最后请建造一个法师塔");
                     }
@@ -639,8 +648,8 @@ public class GameEngine {
                 }
                 break;
 
-            case BUILD_MAGE_TOWER:
-                if (towerType == Tower.Type.MAGE) {
+            case DEPLOY_ARTILLERY:
+                if (towerType == Tower.Type.Artillery) {
                     towersBuilt++;
                     tutorialState = TutorialState.WAITING_FOR_ENEMIES;
                     if (updateListener != null) {
@@ -681,12 +690,12 @@ public class GameEngine {
      */
     private Tower.Type getRequiredTowerTypeForTutorial() {
         switch (tutorialState) {
-            case BUILD_ARCHER_TOWER:
-                return Tower.Type.ARCHER;
-            case BUILD_CANNON_TOWER:
-                return Tower.Type.CANNON;
-            case BUILD_MAGE_TOWER:
-                return Tower.Type.MAGE;
+            case DEPLOY_INFANTRY:
+                return Tower.Type.Infantry;
+            case DEPLOY_ANTI_TANK:
+                return Tower.Type.Anti_tank;
+            case DEPLOY_ARTILLERY:
+                return Tower.Type.Artillery;
             default:
                 return null; // 其他状态不要求特定类型
         }
@@ -738,11 +747,11 @@ public class GameEngine {
                 return "欢迎进入教程关，游戏目标：建造防御塔阻止敌人到达终点";
             case RESOURCE_EXPLANATION:
                 return "资源系统：人力用于建造防御塔，补给通过击败敌人获得";
-            case BUILD_ARCHER_TOWER:
+            case DEPLOY_INFANTRY:
                 return "请按照引导建造三种防御塔：1. 点击建造按钮 2. 选择弓箭塔 3. 在指定位置点击建造";
-            case BUILD_CANNON_TOWER:
+            case DEPLOY_ANTI_TANK:
                 return "很好！现在请建造炮塔，炮塔伤害高但攻击速度慢";
-            case BUILD_MAGE_TOWER:
+            case DEPLOY_ARTILLERY:
                 return "现在请建造法师塔，法师塔射程最远";
             case WAITING_FOR_ENEMIES:
                 return "所有防御塔已建造完成！几秒后敌人将开始出现";
@@ -758,9 +767,9 @@ public class GameEngine {
      */
     private String getTowerTypeName(Tower.Type type) {
         switch (type) {
-            case ARCHER: return "弓箭塔";
-            case CANNON: return "炮塔";
-            case MAGE: return "法师塔";
+            case Infantry: return "弓箭塔";
+            case Anti_tank: return "炮塔";
+            case Artillery: return "法师塔";
             default: return "未知类型";
         }
     }
@@ -1104,15 +1113,15 @@ public class GameEngine {
             int supplyCost = 0;
 
             switch (type) {
-                case ARCHER:
+                case Infantry:
                     manpowerCost = 10;
                     supplyCost = 5;
                     break;
-                case CANNON:
+                case Anti_tank:
                     manpowerCost = 20;
                     supplyCost = 15;
                     break;
-                case MAGE:
+                case Artillery:
                     manpowerCost = 15;
                     supplyCost = 10;
                     break;
@@ -1178,21 +1187,21 @@ public class GameEngine {
         System.out.println("GameEngine: 计算网格大小: " + gridSize + "px (屏幕宽度: " + screenWidth + "px)");
 
         switch (type) {
-            case ARCHER:
+            case Infantry:
                 // 弓箭塔：2格半径，5x5格子的内切圆
                 damage = 10;
                 range = 4 * gridSize; // 2格半径
                 attackSpeed = 1.0f;//攻击速度
                 System.out.println("GameEngine: 弓箭塔攻击范围: " + range + "px (2格半径)");
                 break;
-            case CANNON:
+            case Anti_tank:
                 // 炮塔：1格半径，3x3格子的内切圆
                 damage = 25;
                 range = 2 * gridSize; // 1格半径
                 attackSpeed = 0.5f;
                 System.out.println("GameEngine: 炮塔攻击范围: " + range + "px (1格半径)");
                 break;
-            case MAGE:
+            case Artillery:
                 // 法师塔：圆环攻击范围，内圈1.5格，外圈3格
                 damage = 50;
                 innerRange = 3f * gridSize; // 内圈半径（1.5格）
@@ -1258,7 +1267,170 @@ public class GameEngine {
             });
         }
     }
+    //================================空中支援逻辑==============================================
+    /**
+     * 执行空军轰炸
+     */
+    public void performAirStrike(float x, float y) {
+        if (airSupportCounter < AIR_SUPPORT_THRESHOLD) {
+            System.out.println("GameEngine: 空军支援次数不足");
+            return;
+        }
 
+        System.out.println("GameEngine: 执行空军轰炸，位置: (" + x + ", " + y + ")");
+
+
+        // 计算轰炸区域
+        int gridSize = 60; // 默认网格大小
+        if (screenWidth > 0) {
+            gridSize = (int) (screenWidth * 0.08f);
+            gridSize = Math.max(30, Math.min(gridSize, 100));
+        }
+
+        float left = x - 2 * gridSize;
+        float right = x + 3 * gridSize; // 共5格宽度
+        float top = 0;
+        float bottom = screenHeight;
+
+        System.out.println("GameEngine: 轰炸区域 - 左:" + left + " 右:" + right + " 上:" + top + " 下:" + bottom);
+
+        // 对轰炸区域内的敌人造成99999点伤害（秒杀）
+        dealDamageToEnemiesInArea(left, top, right, bottom, 99999);
+
+
+        // 通知UI更新
+        if (updateListener != null) {
+            updateListener.onResourcesUpdated(
+                    resourceManager.getManpower(),
+                    resourceManager.getSupply()
+            );
+        }
+
+        System.out.println("GameEngine: 空军轰炸执行完成");
+    }
+
+    /**
+     * 对指定区域内的敌人造成伤害
+     */
+    private void dealDamageToEnemiesInArea(float left, float top, float right, float bottom, int damage) {
+        List<Entity> enemies = world.getEntitiesWithComponent(Enemy.class);
+        int affectedCount = 0;
+        int totalEnemies = enemies.size();
+
+        System.out.println("💥 GameEngine: 开始处理轰炸区域内的敌人");
+        System.out.println("💥 GameEngine: 轰炸区域: 左" + left + " 右" + right + " 上" + top + " 下" + bottom);
+        System.out.println("💥 GameEngine: 总敌人数量: " + totalEnemies);
+        System.out.println("💥 GameEngine: 使用伤害值: " + damage);
+
+        for (Entity enemy : enemies) {
+            Transform transform = enemy.getComponent(Transform.class);
+            if (transform != null) {
+                boolean inArea = transform.x >= left && transform.x <= right &&
+                        transform.y >= top && transform.y <= bottom;
+
+                System.out.println("💥 GameEngine: 检查敌人 - 位置: (" + transform.x + ", " + transform.y + "), 在区域内: " + inArea);
+
+                if (inArea) {
+                    Enemy enemyComp = enemy.getComponent(Enemy.class);
+                    Health health = enemy.getComponent(Health.class);
+
+                    if (health != null && enemyComp != null) {
+                        System.out.println("💥 GameEngine: 轰炸前敌人生命值: " + health.current + "/" + health.max);
+
+
+                        // 使用伤害值而不是直接设置为0
+                        health.current -= damage;
+                        if (health.current < 0) {
+                            health.current = 0;
+                            // 标记这个敌人是被空袭击杀的
+                            enemyComp.killedByAirStrike = true;
+                            System.out.println("💥 GameEngine: 标记敌人为空袭击杀");
+                        }
+
+                        System.out.println("💥 GameEngine: 轰炸后敌人生命值: " + health.current + "/" + health.max);
+                        affectedCount++;
+
+                        // 如果敌人死亡，触发被击败逻辑
+                        if (health.current <= 0 && !enemyComp.rewardGiven) {
+                            System.out.println("💥 GameEngine: 敌人被空袭击杀，触发被击败逻辑");
+                            onEnemyDefeated(enemyComp);
+                        } else if (health.current <= 0) {
+                            System.out.println("💥 GameEngine: 敌人被空袭击杀，但奖励已发放");
+                        }
+                    } else {
+                        System.out.println("💥 GameEngine: 错误 - 敌人的Health或Enemy组件为null");
+                    }
+                }
+            } else {
+                System.out.println("💥 GameEngine: 错误 - 敌人的Transform组件为null");
+            }
+        }
+
+        System.out.println("💥 GameEngine: 空军轰炸影响 " + affectedCount + " 个敌人");
+        // 清理死亡的敌人
+        cleanupDeadEnemies();
+        // 额外检查：轰炸后剩余的敌人数量
+        int remainingEnemies = world.getEntitiesWithComponent(Enemy.class).size();
+        System.out.println("💥 GameEngine: 轰炸后剩余敌人数量: " + remainingEnemies);
+    }
+    // 添加获取空军支援状态的方法
+    public int getAirSupportCounter() {
+        return airSupportCounter;
+    }
+
+    public int getAirSupportThreshold() {
+        return AIR_SUPPORT_THRESHOLD;
+    }
+
+    public boolean isAirSupportReady() {
+        return airSupportCounter >= AIR_SUPPORT_THRESHOLD;
+    }
+
+
+    /**
+     * 增加空军支援计数器（由AttackSystem调用）
+     */
+    public void incrementAirSupportCounter() {
+        // 限制计数器最大值
+        if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+            System.out.println("GameEngine: 计数器已达到最大值，不再增加");
+            return;
+        }
+
+        airSupportCounter++;
+        System.out.println("GameEngine: 空军支援计数器: " + airSupportCounter + "/" + AIR_SUPPORT_THRESHOLD);
+
+        // 通知UI更新
+        if (updateListener != null) {
+            updateListener.onResourcesUpdated(
+                    resourceManager.getManpower(),
+                    resourceManager.getSupply()
+            );
+        }
+    }
+    /**
+     * 清理死亡的敌人
+     */
+    private void cleanupDeadEnemies() {
+        List<Entity> enemies = world.getEntitiesWithComponent(Enemy.class);
+        List<Entity> deadEnemies = new ArrayList<>();
+
+        for (Entity enemy : enemies) {
+            Health health = enemy.getComponent(Health.class);
+            if (health != null && health.current <= 0) {
+                deadEnemies.add(enemy);
+            }
+        }
+
+        for (Entity deadEnemy : deadEnemies) {
+            world.removeEntity(deadEnemy);
+            System.out.println("🧹 GameEngine: 清理死亡敌人");
+        }
+
+        if (!deadEnemies.isEmpty()) {
+            System.out.println("🧹 GameEngine: 共清理 " + deadEnemies.size() + " 个死亡敌人");
+        }
+    }
     // =====================================================================
     // Getter和Setter方法
     // =====================================================================

@@ -2,11 +2,12 @@ package com.example.towerdefense.view;
 
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Toast;
 import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
@@ -63,7 +64,15 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private View currentSelectedButton = null;
     private int defaultButtonColor = Color.GRAY;
     private int selectedButtonColor = Color.BLUE;
-
+    // ========== 空军支援相关属性 ==========
+    private Button btnAirSupport;
+    private int airSupportCounter = 0;
+    private final int AIR_SUPPORT_THRESHOLD = 10; // 击败10个敌人获得一次支援
+    private boolean isAirStrikeMode = false; // 是否处于空袭瞄准模式
+    // ========== 任务简报和总结相关属性 ==========
+    private AlertDialog missionDialog;
+    private boolean isMissionBriefingShown = false;
+    private boolean isMissionSummaryShown = false;
     // =====================================================================
     // Activity生命周期方法
     // =====================================================================
@@ -136,6 +145,13 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             hideSystemUI();
         }
     }
+    @Override
+    public void onAirSupportStatusUpdated(int counter, int threshold) {
+        runOnUiThread(() -> {
+            airSupportCounter = counter;
+            updateAirSupportButton();
+        });
+    }
     //================level Highland相关回调=======================================
     /**
      * 高地状态变化回调
@@ -162,6 +178,59 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     public void onHighlandEnemyCountUpdated(int enemyCount) {
         // 不需要特殊处理，UI会在下次绘制时更新
         System.out.println("GameActivity: 高地区域敌人数量更新: " + enemyCount);
+    }
+    /**
+     * 敌人被击败回调 - 添加伤害类型信息
+     */
+    @Override
+    public void onEnemyDefeated(Enemy enemy, int reward) {
+        // 可以在这里添加伤害类型的提示信息
+        String damageInfo = getDamageTypeInfo(enemy.type);
+        System.out.println("GameActivity: 敌人被击败 - " + enemy.type + "，奖励: " + reward + "，伤害特性: " + damageInfo);
+
+        // 如果是教程关卡，可以显示伤害类型说明
+        if (gameEngine != null && gameEngine.isTutorialLevel()) {
+            displayGameMessage("伤害类型",
+                    "击败" + getEnemyTypeName(enemy.type) + "，" + damageInfo,
+                    "不同敌人对不同类型的伤害有不同抗性", true);
+        }
+        // 增加空军支援计数器
+        // 只有不是被空袭击杀的敌人才增加计数器
+        if (!enemy.killedByAirStrike) {
+            System.out.println("GameActivity: 敌人不是空袭击杀，增加计数器");
+            incrementAirSupportCounter();
+        } else {
+            System.out.println("GameActivity: 敌人是空袭击杀，不增加计数器");
+        }
+
+    }
+
+    /**
+     * 获取敌人伤害类型信息
+     */
+    private String getDamageTypeInfo(Enemy.Type enemyType) {
+        switch (enemyType) {
+            case Vehicle:
+                return "轻装机动步兵比普通步兵更脆弱";
+            case Infantry:
+                return "步兵受到伤害数值无修正";
+            case Armour:
+                return "装甲车辆对子弹伤害有抗性";
+            default:
+                return "未知伤害类型";
+        }
+    }
+
+    /**
+     * 获取敌人类型名称
+     */
+    private String getEnemyTypeName(Enemy.Type enemyType) {
+        switch (enemyType) {
+            case Vehicle: return "摩托步兵";
+            case Infantry: return "步兵";
+            case Armour: return "坦克";
+            default: return "未知敌人";
+        }
     }
     // =====================================================================
     // 游戏初始化相关方法
@@ -207,15 +276,14 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 });
             }
         }
-
+        // 显示任务简报
+        showMissionBriefing();
         // 开始游戏
         startGame();
         System.out.println("GameActivity: 完整游戏进程初始化完成");
     }
 
-    /**
-     * 重置UI状态
-     */
+    // 在 resetUIState() 方法中重置任务状态
     private void resetUIState() {
         System.out.println("GameActivity: 重置UI状态");
 
@@ -225,6 +293,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         isGameStarted = (currentLevelId == 0); // 重置游戏开始状态
         currentTutorialState = null;
         currentTutorialMessage = "";
+
+        // 重置任务状态
+        isMissionBriefingShown = false;
+        isMissionSummaryShown = false;
 
         // 清除所有消息和延迟任务
         messageHandler.removeCallbacksAndMessages(null);
@@ -247,6 +319,11 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         if (buildMenuLayout != null) {
             buildMenuLayout.setVisibility(View.GONE);
         }
+        // 重置空军支援
+        airSupportCounter = 0;
+        isAirStrikeMode = false;
+        updateAirSupportButton();
+        setButtonsEnabled(true);
     }
 
     /**
@@ -275,15 +352,38 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 查找并绑定视图组件
         gameView = findViewById(R.id.gameView);
 
-        // 设置 GameView 监听器 - 修复无限递归问题
+        // 设置 GameView 监听器
         if (gameView != null) {
             gameView.setGameViewListener(new GameView.GameViewListener() {
                 @Override
                 public void showGameMessage(String title, String message, String hint, boolean autoHide) {
-                    // 只在教程关卡显示消息
-                    if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    // 只在教程关卡显示消息，但空袭消息在所有关卡都显示
+                    if (gameEngine != null && (gameEngine.isTutorialLevel() || title.contains("空中支援"))) {
                         GameActivity.this.displayGameMessage(title, message, hint, autoHide);
                     }
+                }
+
+                @Override
+                public void onAirStrikeRequested(float x, float y) {
+                    // 处理空袭请求
+                    performAirStrike(x, y);
+                }
+
+                @Override
+                public void onAirStrikeCompleted() {
+                    // 空袭动画完成，退出空袭模式
+                    System.out.println("🎯 GameActivity: onAirStrikeCompleted - 空袭动画完成");
+                    exitAirStrikeMode();
+                    if (gameView != null) {
+                        gameView.setAirStrikeMode(false);
+                    }
+                }
+                @Override
+                public void onAirSupportCounterReset() {
+                    // 计数器重置
+                    System.out.println("🎯 GameActivity: onAirSupportCounterReset - 重置计数器");
+                    airSupportCounter = 0;
+                    updateAirSupportButton();
                 }
             });
         }
@@ -322,21 +422,21 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 弓箭塔选择按钮
         View btnArcherTower = findViewById(R.id.btnArcherTower);
         btnArcherTower.setOnClickListener(v -> {
-            gameView.setSelectedTowerType(Tower.Type.ARCHER);
+            gameView.setSelectedTowerType(Tower.Type.Infantry);
             setButtonSelected(btnArcherTower);
         });
 
         // 炮塔选择按钮
         View btnCannonTower = findViewById(R.id.btnCannonTower);
         btnCannonTower.setOnClickListener(v -> {
-            gameView.setSelectedTowerType(Tower.Type.CANNON);
+            gameView.setSelectedTowerType(Tower.Type.Anti_tank);
             setButtonSelected(btnCannonTower);
         });
 
         // 法师塔选择按钮
         View btnMageTower = findViewById(R.id.btnMageTower);
         btnMageTower.setOnClickListener(v -> {
-            gameView.setSelectedTowerType(Tower.Type.MAGE);
+            gameView.setSelectedTowerType(Tower.Type.Artillery);
             setButtonSelected(btnMageTower);
         });
 
@@ -349,7 +449,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 clearButtonSelection();
                 // 只在教程关卡显示消息
                 if (gameEngine != null && gameEngine.isTutorialLevel()) {
-                    displayGameMessage("移除模式", "退出移除模式", "现在可以建造防御塔", true);
+                    displayGameMessage("移除模式", "退出移除模式", "现在可以部署兵力", true);
                 }
             } else {
                 // 进入移除模式
@@ -357,7 +457,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 setButtonSelected(btnBuildRemove);
                 // 只在教程关卡显示消息
                 if (gameEngine != null && gameEngine.isTutorialLevel()) {
-                    displayGameMessage("移除模式", "移除模式开启", "点击防御塔可移除", true);
+                    displayGameMessage("移除模式", "移除模式开启", "点击兵团可以取消部署", true);
                 }
             }
         });
@@ -369,6 +469,26 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 初始状态：建造模式关闭
         setBuildMode(false);
+        // ========== 空军支援按钮 ==========
+        btnAirSupport = findViewById(R.id.btnAirSupport);
+        if (btnAirSupport != null) {
+            btnAirSupport.setOnClickListener(v -> {
+                if (isAirStrikeMode) {
+                    // 如果已经在空袭模式，点击取消
+                    exitAirStrikeMode();
+                    if (gameView != null) {
+                        gameView.setAirStrikeMode(false);
+                    }
+                } else if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+                    // 进入空袭瞄准模式
+                    enterAirStrikeMode();
+                    if (gameView != null) {
+                        gameView.setAirStrikeMode(true);
+                    }
+                }
+            });
+            btnAirSupport.setVisibility(View.VISIBLE);
+        }
     }
 
     /**
@@ -580,7 +700,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             View btnArcherTower = findViewById(R.id.btnArcherTower);
             if (btnArcherTower != null) {
                 setButtonSelected(btnArcherTower);
-                gameView.setSelectedTowerType(Tower.Type.ARCHER);
+                gameView.setSelectedTowerType(Tower.Type.Infantry);
             }
         }
     }
@@ -594,8 +714,8 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 只在教程关卡显示消息
         if (gameEngine != null && gameEngine.isTutorialLevel()) {
-            String message = isBuildMode ? "建造模式开启" : "建造模式关闭";
-            displayGameMessage("建造模式", message, isBuildMode ? "现在可以放置防御塔" : "建造功能已禁用", true);
+            String message = isBuildMode ? "部署模式开启" : "部署模式关闭";
+            displayGameMessage("部署模式", message, isBuildMode ? "现在可以部署士兵" : "部署功能已关闭", true);
         }
     }
     // =====================================================================
@@ -906,7 +1026,271 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             tvSupply.setText(String.valueOf(supply));
         }
     }
+    /**
+     * 进入空袭瞄准模式
+     */
+    private void enterAirStrikeMode() {
+        isAirStrikeMode = true;
 
+        // 提示用户点击屏幕进行轰炸
+        displayGameMessage("空中支援", "请点击屏幕选择轰炸区域", "点击后轰炸该区域", false);
+
+        // 关闭建造模式（如果开启）
+        if (isBuildMode) {
+            setBuildMode(false);
+        }
+
+        // 禁用其他按钮，防止干扰
+        //setButtonsEnabled(false);
+    }
+
+
+    /**
+     * 启用/禁用按钮
+     */
+    private void setButtonsEnabled(boolean enabled) {
+        if (btnStartGame != null) btnStartGame.setEnabled(enabled);
+        findViewById(R.id.btnBuildMode).setEnabled(enabled);
+        findViewById(R.id.btnSettings).setEnabled(enabled);
+
+        if (buildMenuLayout != null) {
+            for (int i = 0; i < buildMenuLayout.getChildCount(); i++) {
+                buildMenuLayout.getChildAt(i).setEnabled(enabled);
+            }
+        }
+    }
+
+    /**
+     * 更新空军支援按钮显示
+     */
+    private void updateAirSupportButton() {
+        if (btnAirSupport != null) {
+            String text = "空中支援\n" + airSupportCounter + "/" + AIR_SUPPORT_THRESHOLD;
+            btnAirSupport.setText(text);
+
+            System.out.println("🎯 GameActivity: updateAirSupportButton - 计数器: " + airSupportCounter +
+                    "/" + AIR_SUPPORT_THRESHOLD + ", 空袭模式: " + isAirStrikeMode);
+
+            // 如果处于空袭模式，按钮为红色
+            if (isAirStrikeMode) {
+                btnAirSupport.setBackgroundColor(Color.RED);
+                btnAirSupport.setTextColor(Color.WHITE);
+                System.out.println("🎯 GameActivity: 按钮状态 - 空袭模式(红色)");
+            }
+            // 如果达到阈值，按钮为绿色（就绪状态）
+            else if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+                btnAirSupport.setBackgroundColor(Color.GREEN);
+                btnAirSupport.setTextColor(Color.BLACK);
+                System.out.println("🎯 GameActivity: 按钮状态 - 就绪状态(绿色)");
+            }
+            // 未就绪状态
+            else {
+                btnAirSupport.setBackgroundResource(R.drawable.floating_button_bg);
+                btnAirSupport.setTextColor(Color.WHITE);
+                System.out.println("🎯 GameActivity: 按钮状态 - 未就绪(默认)");
+            }
+        } else {
+            System.out.println("🎯 GameActivity: updateAirSupportButton - btnAirSupport为null");
+        }
+    }
+
+    /**
+     * 增加空军支援计数器
+     */
+    public void incrementAirSupportCounter() {
+        // 限制计数器最大值，达到阈值后不再增加
+        if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+            System.out.println("🎯 GameActivity: 计数器已达到最大值，不再增加");
+            return;
+        }
+
+        airSupportCounter++;
+        System.out.println("🎯 GameActivity: incrementAirSupportCounter - 新计数器: " + airSupportCounter);
+
+        updateAirSupportButton();
+
+        // 如果达到阈值，提示玩家
+        if (airSupportCounter >= AIR_SUPPORT_THRESHOLD) {
+            System.out.println("🎯 GameActivity: 空军支援就绪！");
+            displayGameMessage("空中支援就绪", "空中支援已准备就绪！", "点击空中支援按钮使用", true);
+        }
+    }
+    /**
+     * 执行空袭
+     */
+    public void performAirStrike(float x, float y) {
+        System.out.println("🎯 GameActivity: performAirStrike - 开始执行空袭");
+        System.out.println("🎯 GameActivity: 空袭位置: (" + x + ", " + y + ")");
+
+        // 注意：这里不立即退出空袭模式，因为动画还在播放
+        // 空袭模式将在动画结束后由GameView通知退出
+
+        if (gameEngine != null) {
+            gameEngine.performAirStrike(x, y);
+        } else {
+            System.out.println("🎯 GameActivity: 错误 - gameEngine为null");
+        }
+
+        System.out.println("🎯 GameActivity: performAirStrike - 伤害执行完成");
+    }
+
+    /**
+     * 退出空袭瞄准模式
+     */
+    private void exitAirStrikeMode() {
+        isAirStrikeMode = false;
+        hideGameMessage();
+        setButtonsEnabled(true);
+
+        // 更新按钮样式
+        updateAirSupportButton();
+
+        System.out.println("🎯 GameActivity: 退出空袭模式");
+    }
+    /**
+     * 显示任务简报
+     */
+    private void showMissionBriefing() {
+        runOnUiThread(() -> {
+            // 创建任务简报对话框
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MissionDialogTheme);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_mission, null);
+            builder.setView(dialogView);
+            builder.setCancelable(false);
+
+            missionDialog = builder.create();
+
+            // 设置对话框窗口属性
+            if (missionDialog.getWindow() != null) {
+                WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
+                layoutParams.copyFrom(missionDialog.getWindow().getAttributes());
+                // 宽度为屏幕宽度一半，高度占满屏幕
+                layoutParams.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.5);
+                layoutParams.height = WindowManager.LayoutParams.MATCH_PARENT;
+                layoutParams.gravity = Gravity.CENTER;
+                missionDialog.getWindow().setAttributes(layoutParams);
+                missionDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            }
+
+            // 初始化视图组件
+            TextView titleText = dialogView.findViewById(R.id.mission_title);
+            ImageView missionImage = dialogView.findViewById(R.id.mission_image);
+            TextView missionText = dialogView.findViewById(R.id.mission_text);
+
+            // 根据关卡设置内容
+            String title = "任务简报";
+            int imageResId = R.drawable.default_mission_pic; // 默认图片
+            String text = "default";
+
+            switch (currentLevelId) {
+                case 0: // 教程关
+                    imageResId = R.drawable.tutorial_pic;
+                    text = "这里是教程关，敌人要通过一个峡谷，你的任务是在这里击溃敌人，通过的敌人数量过多则任务失败\n点击屏幕继续";
+                    break;
+                case 1: // 第一关
+                    imageResId = R.drawable.level01_pic01;
+                    text = "德军已经迫近斯大林格勒城区，在马马耶夫高地上阻止他们，坚守高地上面的阵地，苏维埃空军可以支援你们\n点击屏幕继续";
+                    break;
+                default:
+                    imageResId = R.drawable.default_mission_pic;
+                    text = "default";
+                    break;
+            }
+
+            titleText.setText(title);
+            missionImage.setImageResource(imageResId);
+            missionText.setText(text);
+
+            // 设置点击事件
+            dialogView.setOnClickListener(v -> {
+                missionDialog.dismiss();
+                isMissionBriefingShown = true;
+
+                // 开始游戏
+                startGame();
+
+                // 如果是教程关卡，延迟触发第一个教程提示
+                if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    new Handler().postDelayed(() -> {
+                        if (gameEngine != null) {
+                            onTutorialStepStarted(GameEngine.TutorialState.WELCOME, "点击屏幕继续");
+                        }
+                    }, 500);
+                }
+            });
+
+            missionDialog.show();
+            System.out.println("GameActivity: 任务简报已显示");
+        });
+    }
+//=============任务简报显示===========================
+    /**
+     * 显示任务总结
+     */
+    private void showMissionSummary() {
+        runOnUiThread(() -> {
+            // 创建任务总结对话框
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MissionDialogTheme);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_mission, null);
+            builder.setView(dialogView);
+            builder.setCancelable(false);
+
+            missionDialog = builder.create();
+
+            // 设置对话框窗口属性
+            if (missionDialog.getWindow() != null) {
+                WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
+                layoutParams.copyFrom(missionDialog.getWindow().getAttributes());
+                // 宽度为屏幕宽度一半，高度占满屏幕
+                layoutParams.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.5);
+                layoutParams.height = WindowManager.LayoutParams.MATCH_PARENT;
+                layoutParams.gravity = Gravity.CENTER;
+                missionDialog.getWindow().setAttributes(layoutParams);
+                missionDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            }
+
+            // 初始化视图组件
+            TextView titleText = dialogView.findViewById(R.id.mission_title);
+            ImageView missionImage = dialogView.findViewById(R.id.mission_image);
+            TextView missionText = dialogView.findViewById(R.id.mission_text);
+
+            // 根据关卡设置内容
+            String title = "任务总结";
+            int imageResId = R.drawable.default_mission_pic; // 默认图片
+            String text = "default";
+
+            switch (currentLevelId) {
+                case 0: // 教程关
+                    imageResId = R.drawable.tutorial_pic;
+                    text = "恭喜你出色地完成了任务\n点击继续";
+                    break;
+                case 1: // 第一关
+                    imageResId = R.drawable.level01_pic02;
+                    text = "我们成功的粉碎了德国人的企图，马马耶夫高地会永远铭记我们\n点击以继续";
+                    break;
+                default:
+                    imageResId = R.drawable.default_mission_pic;
+                    text = "default";
+                    break;
+            }
+
+            titleText.setText(title);
+            missionImage.setImageResource(imageResId);
+            missionText.setText(text);
+
+            // 设置点击事件
+            dialogView.setOnClickListener(v -> {
+                missionDialog.dismiss();
+                isMissionSummaryShown = true;
+
+                // 显示游戏胜利对话框
+                showGameWinMenu();
+            });
+
+            missionDialog.show();
+            System.out.println("GameActivity: 任务总结已显示");
+        });
+    }
     // =====================================================================
     // 游戏结束处理
     // =====================================================================
@@ -1056,15 +1440,6 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     }
 
     /**
-     * 敌人被击败回调
-     */
-    @Override
-    public void onEnemyDefeated(Enemy enemy, int reward) {
-        // 不显示任何消息
-        System.out.println("GameActivity: 敌人被击败 - " + enemy.type + "，奖励: " + reward);
-    }
-
-    /**
      * 教程步骤开始回调
      */
     @Override
@@ -1077,7 +1452,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             switch (state) {
                 case WELCOME:
                     showTutorialMessage("欢迎进入教程关",
-                            "游戏目标：建造防御塔阻止敌人到达终点\n每个敌人到达终点会扣除生命值",
+                            "游戏目标：部署兵力阻止敌人到达终点\n每个敌人到达终点会扣除生命值",
                             "点击屏幕继续");
                     break;
 
@@ -1087,27 +1462,27 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                             "点击屏幕继续");
                     break;
 
-                case BUILD_ARCHER_TOWER:
+                case DEPLOY_INFANTRY:
                     showTutorialMessage("建造防御塔",
-                            "请按照引导建造三种防御塔:1. 点击右下角建造按钮; 2. 选择弓箭塔; 3. 在指定位置点击建造",
-                            "请建造弓箭塔");
+                            "请按照引导部署士兵:1. 点击右下角部署按钮; 2. 选择步兵; 3. 点击合适位置部署",
+                            "部署花费10人力，5补给");
                     break;
 
-                case BUILD_CANNON_TOWER:
-                    showTutorialMessage("继续建造",
-                            "很好！现在请建造炮塔,炮塔伤害高但攻击速度慢",
-                            "请建造炮塔");
+                case DEPLOY_ANTI_TANK:
+                    showTutorialMessage("继续部署",
+                            "很好！现在请部署反坦克兵，他们会对装甲造成更高伤害",
+                            "部署花费20人力，15补给");
                     break;
 
-                case BUILD_MAGE_TOWER:
-                    showTutorialMessage("最后一种防御塔",
-                            "现在请建造法师塔,法师塔射程最远",
-                            "请建造法师塔");
+                case DEPLOY_ARTILLERY:
+                    showTutorialMessage("继续部署",
+                            "最后部署炮兵，注意他们只能攻击远处敌人",
+                            "部署花费15人力，10补给");
                     break;
 
                 case WAITING_FOR_ENEMIES:
                     showTutorialMessage("准备迎敌",
-                            "所有防御塔已建造完成！,几秒后敌人将开始出现",
+                            "士兵部署完成！,几秒后敌人将开始出现",
                             "请稍候...");
                     break;
 
@@ -1139,7 +1514,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
     @Override
     public void onGameWon() {
-        showGameWinMenu();
+        runOnUiThread(() -> {
+            // 显示任务总结而不是直接显示胜利菜单
+            showMissionSummary();
+        });
     }
 
     /**

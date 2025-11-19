@@ -1,10 +1,10 @@
 package com.example.towerdefense.view;
 
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.util.AttributeSet;
@@ -38,7 +38,7 @@ public class GameView extends View {
     private boolean isBuildMode = true;
 
     // ========== 塔选择和移除模式 ==========
-    private Tower.Type selectedTowerType = Tower.Type.ARCHER;
+    private Tower.Type selectedTowerType = Tower.Type.Infantry;
     private boolean isRemoveMode = false;
 
     // ========== 绘制工具 ==========
@@ -55,16 +55,19 @@ public class GameView extends View {
     // ========== 消息监听器 ==========
     public interface GameViewListener {
         void showGameMessage(String title, String message, String hint, boolean autoHide);
+        void onAirStrikeRequested(float x, float y);
+        void onAirStrikeCompleted();
+        void onAirSupportCounterReset();
     }
     private GameViewListener gameViewListener;
 
     // ========== 矢量图资源 ==========
-    private Drawable goblinDrawable;
-    private Drawable orcDrawable;
-    private Drawable trollDrawable;
-    private Drawable archerTowerDrawable;
-    private Drawable cannonTowerDrawable;
-    private Drawable mageTowerDrawable;
+    private Drawable vehicleDrawable;
+    private Drawable infantryDrawable;
+    private Drawable armourDrawable;
+    private Drawable infantryTowerDrawable;
+    private Drawable antitankTowerDrawable;
+    private Drawable artilleryDrawable;
 
     // ========== 图标尺寸控制 ==========
     private int enemyIconSize = 60;
@@ -73,6 +76,31 @@ public class GameView extends View {
     private Drawable backgroundDrawable;
     private boolean showBackground = false;
     private int currentLevelId = -1;
+    // ========== 抛射体矢量图资源 ==========
+    private Drawable antitankProjectileDrawable;
+    private Drawable artilleryProjectileDrawable;
+
+    // ========== 抛射体图标尺寸控制 ==========
+    private int projectileIconSize ;
+
+    // ========== 反坦克手雷旋转相关 ==========
+    private long lastUpdateTime = 0;
+    private float antitankRotation = 0f;
+    private static final float ANTITANK_ROTATION_SPEED = 2f; // 旋转速度，值越小越慢
+    // ========== 空军支援相关属性 ==========
+    private boolean isAirStrikeMode = false;
+    private boolean isAirStriking = false;
+    private float aircraftX; // 飞机的x坐标
+    private float aircraftY; // 飞机的y坐标（固定在上方）
+    private RectF bombArea; // 轰炸区域
+    private Paint bombAreaPaint;
+    private Drawable aircraftDrawable;
+    private int aircraftWidth = 579; // 飞机图像的宽度
+    private int aircraftHeight = 795; // 飞机图像的高度
+    private long airStrikeStartTime;
+    private static final long AIR_STRIKE_DURATION = 4000; // 动画持续2秒
+    private float airStrikeX; // 保存空袭的X坐标
+    private float airStrikeY; // 保存空袭的Y坐标
     // =====================================================================
     // 构造函数和初始化
     // =====================================================================
@@ -113,6 +141,13 @@ public class GameView extends View {
         // 加载矢量图资源
         loadVectorDrawables();
         loadTowerVectorDrawables();
+        loadProjectileVectorDrawables();
+        // 初始化空军轰炸相关
+        bombAreaPaint = new Paint();
+        bombAreaPaint.setColor(Color.argb(100, 255, 0, 0)); // 红色半透明
+
+        // 加载飞机图像
+        loadAircraftDrawable();
     }
 
     // =====================================================================
@@ -128,27 +163,33 @@ public class GameView extends View {
 
         // 设置防御塔图标大小等于网格大小
         towerIconSize = gridSize;
-        System.out.println("GameView: 防御塔图标大小设置为网格大小: " + towerIconSize + "px");
 
         // 根据屏幕尺寸调整敌人图标大小
         enemyIconSize = Math.min(w, h) / 15;
         enemyIconSize = Math.max(40, Math.min(enemyIconSize, 80));
 
+        // 固定抛射体图标大小，确保图像完整显示
+        projectileIconSize = 10; // 固定为40像素
+
         // 重新设置Drawable边界
         updateDrawableBounds();
+        updateProjectileDrawableBounds();
 
         // 更新背景图尺寸
         if (showBackground && backgroundDrawable != null) {
             backgroundDrawable.setBounds(0, 0, w, h);
             System.out.println("GameView: 背景图尺寸更新为: " + w + "x" + h);
         }
-        // 加载防御塔矢量图
+
+        // 重新加载防御塔和抛射体矢量图
         loadTowerVectorDrawables();
+        loadProjectileVectorDrawables();
 
         System.out.println("GameView: 屏幕尺寸变化 " + w + "x" + h);
         System.out.println("GameView: 网格大小 " + gridSize + "px");
         System.out.println("GameView: 敌人图标大小 " + enemyIconSize + "px");
         System.out.println("GameView: 防御塔图标大小 " + towerIconSize + "px");
+        System.out.println("GameView: 抛射体图标大小 " + projectileIconSize + "px");
 
         if (gameEngine != null) {
             gameEngine.setScreenSize(w, h);
@@ -191,6 +232,8 @@ public class GameView extends View {
 
         // 调试信息
         drawDebugInfo(canvas, world);
+        // 绘制空军轰炸（在最上层）
+        drawAirStrike(canvas);
     }
 
     // =====================================================================
@@ -205,13 +248,13 @@ public class GameView extends View {
 
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                goblinDrawable = getContext().getDrawable(R.drawable.enemy_reconnaissance);
-                orcDrawable = getContext().getDrawable(R.drawable.enemy_infantry);
-                trollDrawable = getContext().getDrawable(R.drawable.enemy_armour);
+                vehicleDrawable = getContext().getDrawable(R.drawable.enemy_vehicle);
+                infantryDrawable = getContext().getDrawable(R.drawable.enemy_infantry);
+                armourDrawable = getContext().getDrawable(R.drawable.enemy_armour);
             } else {
-                goblinDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_reconnaissance, getContext().getTheme());
-                orcDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_infantry, getContext().getTheme());
-                trollDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_armour, getContext().getTheme());
+                vehicleDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_vehicle, getContext().getTheme());
+                infantryDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_infantry, getContext().getTheme());
+                armourDrawable = VectorDrawableCompat.create(getResources(), R.drawable.enemy_armour, getContext().getTheme());
             }
 
             System.out.println("GameView: 敌人矢量图加载完成");
@@ -227,9 +270,9 @@ public class GameView extends View {
         System.out.println("GameView: 开始加载防御塔矢量图");
 
         try {
-            archerTowerDrawable = getContext().getDrawable(R.drawable.tower_infantry);
-            cannonTowerDrawable = getContext().getDrawable(R.drawable.tower_anti_tank);
-            mageTowerDrawable = getContext().getDrawable(R.drawable.tower_artillery);
+            infantryTowerDrawable = getContext().getDrawable(R.drawable.tower_infantry);
+            antitankTowerDrawable = getContext().getDrawable(R.drawable.tower_anti_tank);
+            artilleryDrawable = getContext().getDrawable(R.drawable.tower_artillery);
 
             System.out.println("GameView: 防御塔矢量图加载完成");
         } catch (Exception e) {
@@ -241,11 +284,235 @@ public class GameView extends View {
      * 更新Drawable边界
      */
     private void updateDrawableBounds() {
-        if (goblinDrawable != null) goblinDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
-        if (orcDrawable != null) orcDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
-        if (trollDrawable != null) trollDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        if (vehicleDrawable != null) vehicleDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        if (infantryDrawable != null) infantryDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+        if (armourDrawable != null) armourDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
+    }
+    /**
+     * 加载抛射体矢量图资源
+     */
+    private void loadProjectileVectorDrawables() {
+        System.out.println("GameView: 开始加载抛射体矢量图");
+
+        try {
+            // 加载反坦克手雷图像
+            antitankProjectileDrawable = getContext().getDrawable(R.drawable.anti_tank_projectile);
+            if (antitankProjectileDrawable != null) {
+                // 获取原始宽高比
+                int intrinsicWidth = antitankProjectileDrawable.getIntrinsicWidth();
+                int intrinsicHeight = antitankProjectileDrawable.getIntrinsicHeight();
+
+                if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                    float aspectRatio = (float) intrinsicWidth / intrinsicHeight;
+                    // 设置基于宽高比的尺寸
+                    int width = projectileIconSize;
+                    int height = (int) (projectileIconSize / aspectRatio);
+                    antitankProjectileDrawable.setBounds(0, 0, width, height);
+                    System.out.println("GameView: 反坦克手雷图像加载成功，尺寸: " + width + "x" + height + " (宽高比: " + aspectRatio + ")");
+                } else {
+                    // 备用方案：使用固定尺寸
+                    antitankProjectileDrawable.setBounds(0, 0, projectileIconSize, projectileIconSize);
+                    System.out.println("GameView: 反坦克手雷图像使用默认尺寸");
+                }
+            } else {
+                System.err.println("GameView: 反坦克手雷图像加载失败");
+            }
+
+            // 加载炮兵炮弹图像
+            artilleryProjectileDrawable = getContext().getDrawable(R.drawable.artillery_projectile);
+            if (artilleryProjectileDrawable != null) {
+                // 获取原始宽高比
+                int intrinsicWidth = artilleryProjectileDrawable.getIntrinsicWidth();
+                int intrinsicHeight = artilleryProjectileDrawable.getIntrinsicHeight();
+
+                if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                    float aspectRatio = (float) intrinsicWidth / intrinsicHeight;
+                    // 设置基于宽高比的尺寸
+                    int width = projectileIconSize;
+                    int height = (int) (projectileIconSize / aspectRatio);
+                    artilleryProjectileDrawable.setBounds(0, 0, width, height);
+                    System.out.println("GameView: 炮兵炮弹图像加载成功，尺寸: " + width + "x" + height + " (宽高比: " + aspectRatio + ")");
+                } else {
+                    // 备用方案：使用固定尺寸
+                    artilleryProjectileDrawable.setBounds(0, 0, projectileIconSize, projectileIconSize);
+                    System.out.println("GameView: 炮兵炮弹图像使用默认尺寸");
+                }
+            } else {
+                System.err.println("GameView: 炮兵炮弹图像加载失败");
+            }
+
+            System.out.println("GameView: 抛射体矢量图加载完成");
+        } catch (Exception e) {
+            System.err.println("GameView: 加载抛射体矢量图失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
+    /**
+     * 更新抛射体Drawable边界
+     */
+    private void updateProjectileDrawableBounds() {
+        // 反坦克手雷
+        if (antitankProjectileDrawable != null) {
+            int intrinsicWidth = antitankProjectileDrawable.getIntrinsicWidth();
+            int intrinsicHeight = antitankProjectileDrawable.getIntrinsicHeight();
+            if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                float aspectRatio = (float) intrinsicWidth / intrinsicHeight;
+                int width = projectileIconSize;
+                int height = (int) (projectileIconSize / aspectRatio);
+                antitankProjectileDrawable.setBounds(0, 0, width, height);
+            } else {
+                antitankProjectileDrawable.setBounds(0, 0, projectileIconSize, projectileIconSize);
+            }
+        }
+
+        // 炮兵炮弹
+        if (artilleryProjectileDrawable != null) {
+            int intrinsicWidth = artilleryProjectileDrawable.getIntrinsicWidth();
+            int intrinsicHeight = artilleryProjectileDrawable.getIntrinsicHeight();
+            if (intrinsicWidth > 0 && intrinsicHeight > 0) {
+                float aspectRatio = (float) intrinsicWidth / intrinsicHeight;
+                int width = projectileIconSize;
+                int height = (int) (projectileIconSize / aspectRatio);
+                artilleryProjectileDrawable.setBounds(0, 0, width, height);
+            } else {
+                artilleryProjectileDrawable.setBounds(0, 0, projectileIconSize, projectileIconSize);
+            }
+        }
+
+        System.out.println("GameView: 抛射体Drawable边界已更新，保持原始宽高比");
+    }
+    /**
+     * 加载飞机矢量图资源
+     */
+    private void loadAircraftDrawable() {
+        System.out.println("GameView: 开始加载飞机矢量图");
+
+        try {
+            aircraftDrawable = getContext().getDrawable(R.drawable.airforce);
+            if (aircraftDrawable != null) {
+                aircraftDrawable.setBounds(0, 0, aircraftWidth, aircraftHeight);
+                System.out.println("GameView: 飞机矢量图加载成功");
+            } else {
+                System.err.println("GameView: 飞机矢量图加载失败");
+            }
+        } catch (Exception e) {
+            System.err.println("GameView: 加载飞机矢量图失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 开始空军轰炸动画
+     */
+    public void startAirStrikeAnimation(float x, float y) {
+        System.out.println("🔥 GameView: startAirStrikeAnimation 开始 - 位置: (" + x + ", " + y + ")");
+        System.out.println("🔥 GameView: isAirStrikeMode = " + isAirStrikeMode + ", isAirStriking = " + isAirStriking);
+
+        isAirStriking = true;
+        airStrikeStartTime = System.currentTimeMillis();
+
+        // 保存轰炸位置，用于动画结束后执行伤害
+        this.airStrikeX = x;
+        this.airStrikeY = y;
+
+        // 计算轰炸区域
+        float left = x - 2 * gridSize;
+        float right = x + 3 * gridSize;
+        bombArea = new RectF(left, 0, right, getHeight());
+
+        // 飞机起始位置
+        aircraftX = getWidth();
+        aircraftY = (float) getHeight() / 5;
+
+        System.out.println("🔥 GameView: 轰炸区域: " + bombArea);
+        System.out.println("🔥 GameView: 飞机起始位置: (" + aircraftX + ", " + aircraftY + ")");
+        // 立即通知计数器清零
+        if (gameViewListener != null) {
+            System.out.println("🔥 GameView: 通知计数器清零");
+            gameViewListener.onAirSupportCounterReset();
+        }
+        // 开始动画
+        invalidate();
+        System.out.println("🔥 GameView: 已调用invalidate()，等待onDraw调用");
+    }
+
+    /**
+     * 绘制空军轰炸
+     */
+    private void drawAirStrike(Canvas canvas) {
+        if (!isAirStriking) {
+            //System.out.println("🔥 GameView: drawAirStrike - 动画未激活，直接返回");
+            return;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        long elapsed = currentTime - airStrikeStartTime;
+
+        System.out.println("🔥 GameView: drawAirStrike - 已耗时: " + elapsed + "ms");
+
+        if (elapsed > AIR_STRIKE_DURATION) {
+            // 动画结束，执行空袭伤害
+            System.out.println("🔥 GameView: drawAirStrike - 动画结束，执行空袭伤害");
+            isAirStriking = false;
+            bombArea = null;
+
+            // 动画结束后执行空袭伤害
+            if (gameViewListener != null) {
+                System.out.println("🔥 GameView: 调用gameViewListener.onAirStrikeRequested");
+                gameViewListener.onAirStrikeRequested(airStrikeX, airStrikeY);
+
+                // 通知空袭完成
+                System.out.println("🔥 GameView: 调用gameViewListener.onAirStrikeCompleted");
+                gameViewListener.onAirStrikeCompleted();
+            }
+
+            return;
+        }
+
+        // 计算飞机位置
+        float progress = (float) elapsed / AIR_STRIKE_DURATION;
+        aircraftX = getWidth() * (1 - progress);
+
+        System.out.println("🔥 GameView: drawAirStrike - 进度: " + progress + ", 飞机位置: (" + aircraftX + ", " + aircraftY + ")");
+
+        // 绘制轰炸区域
+        if (bombArea != null) {
+            canvas.drawRect(bombArea, bombAreaPaint);
+            System.out.println("🔥 GameView: 绘制轰炸区域");
+        }
+
+        // 绘制飞机
+        if (aircraftDrawable != null) {
+            canvas.save();
+            canvas.translate(aircraftX, aircraftY);
+            aircraftDrawable.draw(canvas);
+            canvas.restore();
+            System.out.println("🔥 GameView: 绘制飞机");
+        }
+
+        // 继续动画
+        invalidate();
+        System.out.println("🔥 GameView: 调用invalidate()继续动画");
+    }
+    /**
+     * 设置空袭模式状态
+     */
+    public void setAirStrikeMode(boolean airStrikeMode) {
+        this.isAirStrikeMode = airStrikeMode;
+        // 如果退出空袭模式，确保动画状态也重置
+        if (!airStrikeMode) {
+            this.isAirStriking = false;
+            this.bombArea = null;
+        }
+        invalidate();
+    }
+
+    /**
+     * 检查是否正在播放空袭动画
+     */
+    public boolean isAirStriking() {
+        return isAirStriking;
+    }
     // =====================================================================
     // 网格系统相关方法
     // =====================================================================
@@ -319,7 +586,24 @@ public class GameView extends View {
         if (event.getAction() == MotionEvent.ACTION_DOWN && gameEngine != null) {
             float x = event.getX();
             float y = event.getY();
+            System.out.println("🖐️ GameView: 触摸事件 - 位置: (" + x + ", " + y + ")");
+            System.out.println("🖐️ GameView: 状态 - isAirStrikeMode: " + isAirStrikeMode + ", isAirStriking: " + isAirStriking + ", isBuildMode: " + isBuildMode);
 
+            // 首先检查是否处于空袭模式且不在动画播放中
+            if (isAirStrikeMode && !isAirStriking) {
+                System.out.println("🖐️ GameView: 空袭模式下点击，触发空袭动画");
+
+                // 开始动画（伤害将在动画结束后执行）
+                System.out.println("🖐️ GameView: 调用startAirStrikeAnimation");
+                startAirStrikeAnimation(x, y);
+
+                performClick();
+                return true;
+            } else if (isAirStrikeMode && isAirStriking) {
+                System.out.println("🖐️ GameView: 空袭动画播放中，忽略点击");
+                performClick();
+                return true;
+            }
             if (!isBuildMode) {
                 System.out.println("GameView: 建造模式未开启，无法进行操作");
                 showBuildModeRequiredMessage();
@@ -357,7 +641,10 @@ public class GameView extends View {
         }
         return super.onTouchEvent(event);
     }
-
+    // 提供getGridSize方法供外部访问
+    public int getGridSize() {
+        return gridSize;
+    }
     @Override
     public boolean performClick() {
         super.performClick();
@@ -449,7 +736,7 @@ public class GameView extends View {
     }
 
     /**
-     * 绘制敌人 - 使用矢量图
+     * 绘制敌人 - 添加伤害类型视觉反馈
      */
     private void drawEnemy(Canvas canvas, Entity enemy, Transform transform) {
         Enemy enemyComp = enemy.getComponent(Enemy.class);
@@ -472,6 +759,9 @@ public class GameView extends View {
         if (health != null) {
             drawHealthBar(canvas, transform, health, enemyIconSize / 2f + 10f);
         }
+
+        // 可选：在敌人上方绘制伤害类型信息
+        drawEnemyTypeInfo(canvas, transform, enemyComp.type);
     }
 
     /**
@@ -508,7 +798,7 @@ public class GameView extends View {
 
         // 绘制攻击范围
         if (towerComp != null) {
-            if (towerComp.type == Tower.Type.MAGE) {
+            if (towerComp.type == Tower.Type.Artillery) {
                 // 法师塔：只绘制圆环区域（外圈减去内圈）
                 paint.setColor(Color.argb(50, 255, 255, 255)); // 蓝色圆环
 
@@ -536,115 +826,230 @@ public class GameView extends View {
         // 简单的几何图形绘制
         paint.setStyle(Paint.Style.FILL);
         switch (type) {
-            case ARCHER: paint.setColor(Color.GREEN); break;
-            case CANNON: paint.setColor(Color.RED); break;
-            case MAGE: paint.setColor(Color.BLUE); break;
+            case Infantry: paint.setColor(Color.GREEN); break;
+            case Anti_tank: paint.setColor(Color.RED); break;
+            case Artillery: paint.setColor(Color.BLUE); break;
             default: paint.setColor(Color.GRAY); break;
         }
         canvas.drawCircle(transform.x, transform.y, towerIconSize / 3f, paint);
     }
 
     /**
-     * 绘制抛射体 - 根据防御塔类型显示不同的弹道外观
+     * 绘制抛射体 - 根据类型使用不同的绘制方式
      */
     private void drawProjectile(Canvas canvas, Entity projectile, Transform transform) {
         Projectile projectileComp = projectile.getComponent(Projectile.class);
 
         if (projectileComp != null) {
-            // 根据防御塔类型设置不同的弹道外观
             switch (projectileComp.towerType) {
-                case ARCHER:
-                    // 弓箭塔：绿色箭头
-                    drawArrowProjectile(canvas, transform, Color.GREEN);
+                case Infantry:
+                    // 步兵：绘制黄色细长矩形
+                    drawInfantryProjectile(canvas, transform, projectileComp);
                     break;
 
-                case CANNON:
-                    // 炮塔：红色炮弹
-                    drawCannonProjectile(canvas, transform, Color.RED);
+                case Anti_tank:
+                    // 反坦克兵：使用SVG图像并旋转
+                    drawAntitankProjectile(canvas, transform, projectileComp);
                     break;
 
-                case MAGE:
-                    // 法师塔：蓝色魔法球
-                    drawMagicProjectile(canvas, transform, Color.BLUE);
+                case Artillery:
+                    // 炮兵：使用SVG图像，正上方为飞行方向
+                    drawArtilleryProjectile(canvas, transform, projectileComp);
                     break;
 
                 default:
-                    // 默认弹道：白色圆形
-                    paint.setColor(Color.WHITE);
-                    canvas.drawCircle(transform.x, transform.y, 5f, paint);
+                    // 默认：白色圆形
+                    drawFallbackProjectile(canvas, transform);
                     break;
             }
         } else {
-            // 如果没有弹道组件，绘制默认弹道
-            paint.setColor(Color.WHITE);
-            canvas.drawCircle(transform.x, transform.y, 5f, paint);
+            drawFallbackProjectile(canvas, transform);
         }
     }
 
     /**
-     * 绘制弓箭塔的箭头弹道
+     * 绘制步兵子弹 - 黄色细长矩形
      */
-    private void drawArrowProjectile(Canvas canvas, Transform transform, int color) {
-        paint.setColor(color);
+    private void drawInfantryProjectile(Canvas canvas, Transform transform, Projectile projectile) {
+        paint.setColor(Color.YELLOW);
         paint.setStyle(Paint.Style.FILL);
 
-        // 绘制箭头主体（细长矩形）
-        float arrowLength = 15f;
-        float arrowWidth = 3f;
+        // 绘制细长矩形（水平方向）
+        float length = 20f;  // 长度
+        float width = 4f;    // 宽度
 
-        // 计算弹道方向（如果需要可以添加方向计算）
-        // 暂时绘制为水平方向的箭头
+        canvas.drawRect(
+                transform.x - length/2, transform.y - width/2,
+                transform.x + length/2, transform.y + width/2,
+                paint
+        );
 
-        // 绘制箭头线
-        paint.setStrokeWidth(arrowWidth);
-        canvas.drawLine(transform.x - arrowLength/2, transform.y,
-                transform.x + arrowLength/2, transform.y, paint);
-
-        // 绘制箭头头部
-        float headSize = 4f;
-        canvas.drawCircle(transform.x + arrowLength/2, transform.y, headSize, paint);
+        // 添加头部尖角效果
+        paint.setColor(Color.WHITE);
+        canvas.drawCircle(transform.x + length/2, transform.y, width/2, paint);
     }
 
     /**
-     * 绘制炮塔的炮弹弹道
+     * 绘制反坦克手雷 - 使用SVG图像并旋转，保持宽高比
      */
-    private void drawCannonProjectile(Canvas canvas, Transform transform, int color) {
-        paint.setColor(color);
-        paint.setStyle(Paint.Style.FILL);
+    private void drawAntitankProjectile(Canvas canvas, Transform transform, Projectile projectile) {
+        if (antitankProjectileDrawable != null) {
+            try {
+                // 更新旋转角度（基于时间）
+                updateRotation();
 
-        // 绘制圆形炮弹
-        float radius = 6f;
-        canvas.drawCircle(transform.x, transform.y, radius, paint);
+                // 获取Drawable的实际尺寸
+                int drawableWidth = antitankProjectileDrawable.getBounds().width();
+                int drawableHeight = antitankProjectileDrawable.getBounds().height();
 
-        // 添加炮弹高光效果
-        paint.setColor(Color.WHITE);
-        canvas.drawCircle(transform.x - radius/3, transform.y - radius/3, radius/3, paint);
+                // 保存画布状态
+                canvas.save();
+
+                // 移动到抛射体位置并旋转
+                canvas.translate(transform.x, transform.y);
+                canvas.rotate(antitankRotation);
+
+                // 使用实际尺寸计算绘制位置（使图像中心与抛射体位置对齐）
+                int left = -drawableWidth / 2;
+                int top = -drawableHeight / 2;
+
+                // 设置Drawable边界并绘制
+                antitankProjectileDrawable.setBounds(
+                        left, top,
+                        left + drawableWidth,
+                        top + drawableHeight
+                );
+                antitankProjectileDrawable.draw(canvas);
+
+                // 恢复画布状态
+                canvas.restore();
+
+            } catch (Exception e) {
+                System.err.println("GameView: 绘制反坦克手雷时发生异常: " + e.getMessage());
+                drawFallbackProjectile(canvas, transform);
+            }
+        } else {
+            // 备用：红色圆形
+            paint.setColor(Color.RED);
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawCircle(transform.x, transform.y, 6f, paint);
+        }
     }
 
     /**
-     * 绘制法师塔的魔法弹道
+     * 绘制炮兵炮弹 - 使用SVG图像，保持宽高比
      */
-    private void drawMagicProjectile(Canvas canvas, Transform transform, int color) {
-        // 绘制魔法球外圈
-        paint.setColor(color);
-        paint.setStyle(Paint.Style.FILL);
-        float outerRadius = 8f;
-        canvas.drawCircle(transform.x, transform.y, outerRadius, paint);
+    private void drawArtilleryProjectile(Canvas canvas, Transform transform, Projectile projectile) {
+        if (artilleryProjectileDrawable != null) {
+            try {
+                // 获取Drawable的实际尺寸
+                int drawableWidth = artilleryProjectileDrawable.getBounds().width();
+                int drawableHeight = artilleryProjectileDrawable.getBounds().height();
 
-        // 绘制魔法球内圈（发光效果）
-        paint.setColor(Color.WHITE);
-        float innerRadius = 4f;
-        canvas.drawCircle(transform.x, transform.y, innerRadius, paint);
+                // 保存画布状态
+                canvas.save();
 
-        // 绘制魔法效果（简单的星光效果）
-        paint.setColor(Color.argb(150, 200, 200, 255));
-        float sparkleLength = 3f;
-        canvas.drawLine(transform.x - outerRadius, transform.y, transform.x - outerRadius - sparkleLength, transform.y, paint);
-        canvas.drawLine(transform.x + outerRadius, transform.y, transform.x + outerRadius + sparkleLength, transform.y, paint);
-        canvas.drawLine(transform.x, transform.y - outerRadius, transform.x, transform.y - outerRadius - sparkleLength, paint);
-        canvas.drawLine(transform.x, transform.y + outerRadius, transform.x, transform.y + outerRadius + sparkleLength, paint);
+                // 移动到抛射体位置
+                canvas.translate(transform.x, transform.y);
+
+                // 计算飞行方向角度
+                float angle = calculateProjectileAngle(projectile);
+                canvas.rotate(angle);
+
+                // 使用实际尺寸计算绘制位置（使图像中心与抛射体位置对齐）
+                int left = -drawableWidth / 2;
+                int top = -drawableHeight / 2;
+
+                // 设置Drawable边界并绘制
+                artilleryProjectileDrawable.setBounds(
+                        left, top,
+                        left + drawableWidth,
+                        top + drawableHeight
+                );
+                artilleryProjectileDrawable.draw(canvas);
+
+                // 恢复画布状态
+                canvas.restore();
+
+            } catch (Exception e) {
+                System.err.println("GameView: 绘制炮兵炮弹时发生异常: " + e.getMessage());
+                drawFallbackProjectile(canvas, transform);
+            }
+        } else {
+            // 备用：蓝色圆形
+            paint.setColor(Color.BLUE);
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawCircle(transform.x, transform.y, 8f, paint);
+        }
     }
 
+    /**
+     * 计算抛射体飞行方向角度
+     */
+    private float calculateProjectileAngle(Projectile projectile) {
+        // 这里可以根据抛射体的速度向量计算实际飞行方向
+        // 暂时返回0度（正上方），你可以根据实际需要修改
+        return 0f;
+    }
+
+    /**
+     * 备用抛射体绘制方案
+     */
+    private void drawFallbackProjectile(Canvas canvas, Transform transform) {
+        paint.setColor(Color.WHITE);
+        paint.setStyle(Paint.Style.FILL);
+        canvas.drawCircle(transform.x, transform.y, 5f, paint);
+    }
+
+    /**
+     * 更新反坦克手雷的旋转角度
+     */
+    private void updateRotation() {
+        long currentTime = System.currentTimeMillis();
+
+        if (lastUpdateTime == 0) {
+            lastUpdateTime = currentTime;
+            return;
+        }
+
+        // 计算时间差（毫秒）
+        long deltaTime = currentTime - lastUpdateTime;
+        lastUpdateTime = currentTime;
+
+        // 根据时间差更新旋转角度（控制旋转速度）
+        antitankRotation += (deltaTime * ANTITANK_ROTATION_SPEED) / 16f;
+
+        // 保持角度在0-360度范围内
+        if (antitankRotation >= 360f) {
+            antitankRotation -= 360f;
+        }
+    }
+
+    /**
+     * 绘制敌人类型信息
+     */
+    private void drawEnemyTypeInfo(Canvas canvas, Transform transform, Enemy.Type enemyType) {
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(12f);
+
+        String typeInfo = "";
+        switch (enemyType) {
+            case Vehicle:
+                typeInfo = "脆弱: +25%伤害";
+                paint.setColor(Color.YELLOW);
+                break;
+            case Infantry:
+                typeInfo = "标准: 无修正";
+                paint.setColor(Color.WHITE);
+                break;
+            case Armour:
+                typeInfo = "重甲: 抗弓箭，弱炮击";
+                paint.setColor(Color.CYAN);
+                break;
+        }
+
+        canvas.drawText(typeInfo, transform.x - 30, transform.y - enemyIconSize / 2f - 5, paint);
+    }
     /**
      * 绘制用户界面
      */
@@ -790,14 +1195,14 @@ public class GameView extends View {
      * 绘制建造模式状态
      */
     private void drawBuildModeStatus(Canvas canvas, float textSize) {
-        String buildModeText = "建造模式: " + (isBuildMode ? "开启" : "关闭");
+        String buildModeText = "部署模式: " + (isBuildMode ? "开启" : "关闭");
         paint.setColor(isBuildMode ? Color.GREEN : Color.RED);
         canvas.drawText(buildModeText, 10, textSize * 2 + 5, paint);
 
         if (!isBuildMode) {
             paint.setColor(Color.YELLOW);
             paint.setTextSize(textSize * 0.6f);
-            canvas.drawText("点击建造模式按钮来放置防御塔", 10, textSize * 3 + 5, paint);
+            canvas.drawText("点击部署模式按钮来部署兵力", 10, textSize * 3 + 5, paint);
         }
     }
 
@@ -810,9 +1215,9 @@ public class GameView extends View {
      */
     private Drawable getEnemyDrawable(Enemy.Type type) {
         switch (type) {
-            case GOBLIN: return goblinDrawable;
-            case ORC: return orcDrawable;
-            case TROLL: return trollDrawable;
+            case Vehicle: return vehicleDrawable;
+            case Infantry: return infantryDrawable;
+            case Armour: return armourDrawable;
             default: return null;
         }
     }
@@ -822,9 +1227,9 @@ public class GameView extends View {
      */
     private Drawable getTowerDrawable(Tower.Type type) {
         switch (type) {
-            case ARCHER: return archerTowerDrawable;
-            case CANNON: return cannonTowerDrawable;
-            case MAGE: return mageTowerDrawable;
+            case Infantry: return infantryTowerDrawable;
+            case Anti_tank: return antitankTowerDrawable;
+            case Artillery: return artilleryDrawable;
             default: return null;
         }
     }
@@ -855,11 +1260,11 @@ public class GameView extends View {
      */
     private String getModeText() {
         if (isRemoveMode) {
-            return "移除模式：点击防御塔移除";
+            return "点击士兵取消部署";
         } else if (selectedTowerType != null) {
-            return "建造模式 - 选中: " + selectedTowerType.name();
+            return "部署模式 - 选中: " + selectedTowerType.name();
         } else {
-            return "建造模式 - 请选择塔类型";
+            return "部署模式 - 请选择塔类型";
         }
     }
 
@@ -883,13 +1288,13 @@ public class GameView extends View {
     private void showBuildModeRequiredMessage() {
         System.out.println("GameView: 请先开启建造模式来放置防御塔");
         if (gameViewListener != null) {
-            gameViewListener.showGameMessage("建造提示", "请先开启建造模式", "点击右下角建造按钮开启建造模式", true);
+            gameViewListener.showGameMessage("部署提示", "请先开启部署模式", "点击右下角部署按钮开启部署模式", true);
         }
     }
 
     private void showNoTowerSelectedMessage() {
         if (gameViewListener != null) {
-            gameViewListener.showGameMessage("建造提示", "请先选择要建造的防御塔类型", "点击建造菜单中的塔图标", true);
+            gameViewListener.showGameMessage("部署提示", "请先选择要部署的兵种类型", "点击部署菜单中的士兵图标", true);
         }
     }
 
@@ -900,11 +1305,11 @@ public class GameView extends View {
         if (gameViewListener != null) {
             String towerName = "";
             switch (towerType) {
-                case ARCHER: towerName = "弓箭塔"; break;
-                case CANNON: towerName = "炮塔"; break;
-                case MAGE: towerName = "法师塔"; break;
+                case Infantry: towerName = "步兵"; break;
+                case Anti_tank: towerName = "反坦克兵"; break;
+                case Artillery: towerName = "炮兵"; break;
             }
-            gameViewListener.showGameMessage("建造成功", towerName + "已放置", "继续建造或退出建造模式", true);
+            gameViewListener.showGameMessage("部署成功", towerName + "已部署", "继续部署或退出部署模式", true);
         }
     }
 

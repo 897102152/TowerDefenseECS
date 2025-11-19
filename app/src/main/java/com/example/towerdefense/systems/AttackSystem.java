@@ -7,7 +7,6 @@ import com.example.towerdefense.components.Tower;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
 import com.example.towerdefense.managers.ResourceManager;
-import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.GameEngine; // 添加这行导入
 import java.util.List;
 
@@ -92,7 +91,7 @@ public class AttackSystem extends ECSSystem {
             float dy = towerTransform.y - enemyTransform.y;
             float distance = (float) Math.sqrt(dx * dx + dy * dy);
 
-            if (tower.getType() == Tower.Type.MAGE) {
+            if (tower.getType() == Tower.Type.Artillery) {
                 // 法师塔：目标必须在圆环范围内（大于内圈且小于外圈）
                 if (distance > tower.innerRange && distance <= tower.range) {
                     return enemy;
@@ -130,7 +129,7 @@ public class AttackSystem extends ECSSystem {
         float targetY = targetTransform.y;
 
         switch (towerComp.type) {
-            case ARCHER:
+            case Infantry:
                 // 弓箭塔：追踪弹道，基准速度 × 1.25倍
                 projectileSpeed = baseSpeed * 1.25f;
 
@@ -142,7 +141,7 @@ public class AttackSystem extends ECSSystem {
                 System.out.println("AttackSystem: 弓箭塔发射追踪弹道，速度: " + projectileSpeed);
                 break;
 
-            case CANNON:
+            case Anti_tank:
                 // 炮塔：范围伤害，基准速度 × 0.5倍，小范围
                 projectileSpeed = baseSpeed * 0.5f;
                 float cannonAreaRadius = 60f; // 炮塔范围伤害半径
@@ -155,7 +154,7 @@ public class AttackSystem extends ECSSystem {
                 System.out.println("AttackSystem: 炮塔发射范围伤害弹道，速度: " + projectileSpeed + ", 范围半径: " + cannonAreaRadius);
                 break;
 
-            case MAGE:
+            case Artillery:
                 // 法师塔：范围伤害，基准速度 × 0.75倍，大范围
                 projectileSpeed = baseSpeed * 1.1f;
                 float mageAreaRadius = 120f; // 法师塔范围伤害半径

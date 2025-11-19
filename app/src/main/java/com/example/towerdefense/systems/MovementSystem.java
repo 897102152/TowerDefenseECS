@@ -2,12 +2,12 @@ package com.example.towerdefense.systems;
 
 import com.example.towerdefense.ecs.ECSSystem;
 import com.example.towerdefense.ecs.Entity;
-import com.example.towerdefense.ecs.World;
 import com.example.towerdefense.components.Transform;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
 import com.example.towerdefense.components.Health;
 import com.example.towerdefense.components.Path;
+import com.example.towerdefense.components.Tower;
 import java.util.List;
 import com.example.towerdefense.GameEngine;
 
@@ -213,10 +213,24 @@ public class MovementSystem extends ECSSystem {
     }
 
     /**
-     * 应用范围伤害
+     * 应用单目标伤害 - 添加伤害修正
+     */
+    private void applySingleTargetDamage(Entity projectile, Entity target, int damage) {
+        Projectile projectileComp = projectile.getComponent(Projectile.class);
+        Tower.Type towerType = projectileComp != null ? projectileComp.towerType : Tower.Type.Infantry;
+
+        applyDamageToEnemy(target, damage, towerType);
+        System.out.println("MovementSystem: 单目标伤害命中敌人，防御塔类型: " + towerType);
+    }
+
+    /**
+     * 应用范围伤害 - 添加伤害修正
      */
     private void applyAreaDamage(Entity projectile, float centerX, float centerY,
                                  int damage, float radius) {
+        Projectile projectileComp = projectile.getComponent(Projectile.class);
+        Tower.Type towerType = projectileComp != null ? projectileComp.towerType : Tower.Type.Infantry;
+
         List<Entity> enemies = world.getEntitiesWithComponent(Enemy.class);
 
         for (Entity enemy : enemies) {
@@ -228,32 +242,33 @@ public class MovementSystem extends ECSSystem {
             float distance = (float) Math.sqrt(dx * dx + dy * dy);
 
             if (distance <= radius) {
-                applyDamageToEnemy(enemy, damage);
+                applyDamageToEnemy(enemy, damage, towerType);
+                System.out.println("MovementSystem: 范围伤害命中敌人，防御塔类型: " + towerType + ", 距离: " + distance);
             }
         }
     }
 
     /**
-     * 应用单目标伤害
+     * 对敌人应用伤害 - 添加伤害修正
      */
-    private void applySingleTargetDamage(Entity projectile, Entity target, int damage) {
-        applyDamageToEnemy(target, damage);
-    }
-
-    /**
-     * 对敌人应用伤害
-     */
-    private void applyDamageToEnemy(Entity enemy, int damage) {
+    private void applyDamageToEnemy(Entity enemy, int baseDamage, Tower.Type towerType) {
+        Enemy enemyComp = enemy.getComponent(Enemy.class);
         Health health = enemy.getComponent(Health.class);
-        if (health != null) {
-            health.current -= damage;
 
+        if (health != null && enemyComp != null) {
+            // 根据敌人类型和防御塔类型计算修正后的伤害
+            int actualDamage = enemyComp.calculateAdjustedDamage(towerType, baseDamage);
+
+            health.current -= actualDamage;
+            System.out.println("MovementSystem: 对" + enemyComp.type + "造成 " + actualDamage + " 点伤害，剩余生命: " + health.current);
+
+            // 检查敌人是否被击败
             if (health.current <= 0) {
-                Enemy enemyComp = enemy.getComponent(Enemy.class);
-                if (enemyComp != null && gameEngine != null) {
+                if (gameEngine != null) {
                     gameEngine.onEnemyDefeated(enemyComp);
                 }
                 world.removeEntity(enemy);
+                System.out.println("MovementSystem: 敌人被击败");
             }
         }
     }

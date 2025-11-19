@@ -74,6 +74,7 @@
         </LinearLayout>
 
     </LinearLayout>
+
     <Button
         android:id="@+id/btnStartGame"
         android:layout_width="120dp"
@@ -87,6 +88,7 @@
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
     <!-- 设置按钮 - 右上角 -->
     <ImageButton
         android:id="@+id/btnSettings"
@@ -99,6 +101,7 @@
         android:contentDescription="@string/settings"
         android:scaleType="centerInside"
         app:tint="@android:color/white" />
+
     <!-- ========== 建造模式主按钮 ========== -->
     <ImageButton
         android:id="@+id/btnBuildMode"
@@ -111,6 +114,20 @@
         android:contentDescription="@string/deploy"
         android:scaleType="centerInside"
         app:tint="@android:color/white" />
+
+    <!-- ========== 空军支援按钮 ========== -->
+    <Button
+        android:id="@+id/btnAirSupport"
+        android:layout_width="120dp"
+        android:layout_height="60dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="88dp"
+        android:layout_gravity="bottom|end"
+        android:text="空中支援\n0/10"
+        android:background="@drawable/floating_button_bg"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        android:visibility="visible" />
 
     <!-- ========== 建造菜单 - 默认隐藏 ========== -->
     <LinearLayout
@@ -158,7 +175,7 @@
             android:background="@drawable/floating_button_bg"
             android:contentDescription="@string/artillery"
             android:scaleType="centerInside"
-             />
+            />
         <!-- 移除按钮 -->
         <ImageButton
             android:id="@+id/btnBuildRemove"

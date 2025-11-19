@@ -12,9 +12,9 @@ public class Enemy implements Component {
      * 敌人类型枚举 - 定义游戏中不同类型的敌人
      */
     public enum Type {
-        GOBLIN, // 哥布林：快速但脆弱
-        ORC,    // 兽人：均衡型敌人
-        TROLL   // 巨魔：缓慢但强大
+        Vehicle, // 哥布林：快速但脆弱
+        Infantry,    // 兽人：均衡型敌人
+        Armour   // 巨魔：缓慢但强大
     }
 
     // 公共字段 - 在ECS架构中通常直接访问以提高性能
@@ -22,7 +22,8 @@ public class Enemy implements Component {
     public float speed;    // 移动速度（像素/秒）
     public int reward;     // 击败后奖励的金币数
     public int pathIndex;  // 当前路径点索引，用于路径跟踪
-
+    // 新增：标记是否被空袭击杀
+    public boolean killedByAirStrike = false;
     public Path.PathTag pathTag;
 
     // 新增：是否已发放奖励（避免重复发放）
@@ -129,4 +130,44 @@ public class Enemy implements Component {
         this.pathIndex = pathIndex;
     }
     public void setRewardGiven(boolean rewardGiven) { this.rewardGiven = rewardGiven; }
+    /**
+     * 根据防御塔类型计算伤害修正
+     * @param towerType 防御塔类型
+     * @param baseDamage 基础伤害
+     * @return 修正后的伤害
+     */
+    public int calculateAdjustedDamage(Tower.Type towerType, int baseDamage) {
+        float multiplier = 1.0f; // 默认伤害倍率
+
+        switch (this.type) {
+            case Vehicle:
+                // 哥布林：受到所有伤害均为125%
+                multiplier = 1.25f;
+                break;
+
+            case Infantry:
+                // 兽人：受到的伤害没有修正，为100%
+                multiplier = 1.0f;
+                break;
+
+            case Armour:
+                // 巨魔：受到125%来自炮塔和魔法塔的伤害，受到50%来自弓箭塔的伤害
+                switch (towerType) {
+                    case Anti_tank:
+                    case Artillery:
+                        multiplier = 1.25f; // 炮塔和魔法塔造成125%伤害
+                        break;
+                    case Infantry:
+                        multiplier = 0.5f; // 弓箭塔造成50%伤害
+                        break;
+                }
+                break;
+        }
+
+        int adjustedDamage = (int)(baseDamage * multiplier);
+        System.out.println("Enemy: " + this.type + " 受到 " + towerType + " 攻击，伤害修正: " +
+                multiplier + "x, 基础伤害: " + baseDamage + ", 实际伤害: " + adjustedDamage);
+
+        return adjustedDamage;
+    }
 }
