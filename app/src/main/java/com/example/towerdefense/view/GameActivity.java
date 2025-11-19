@@ -2,9 +2,11 @@ package com.example.towerdefense.view;
 
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
@@ -67,7 +69,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private int airSupportCounter = 0;
     private final int AIR_SUPPORT_THRESHOLD = 10; // 击败10个敌人获得一次支援
     private boolean isAirStrikeMode = false; // 是否处于空袭瞄准模式
-
+    // ========== 任务简报和总结相关属性 ==========
+    private AlertDialog missionDialog;
+    private boolean isMissionBriefingShown = false;
+    private boolean isMissionSummaryShown = false;
     // =====================================================================
     // Activity生命周期方法
     // =====================================================================
@@ -271,15 +276,14 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 });
             }
         }
-
+        // 显示任务简报
+        showMissionBriefing();
         // 开始游戏
         startGame();
         System.out.println("GameActivity: 完整游戏进程初始化完成");
     }
 
-    /**
-     * 重置UI状态
-     */
+    // 在 resetUIState() 方法中重置任务状态
     private void resetUIState() {
         System.out.println("GameActivity: 重置UI状态");
 
@@ -289,6 +293,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         isGameStarted = (currentLevelId == 0); // 重置游戏开始状态
         currentTutorialState = null;
         currentTutorialMessage = "";
+
+        // 重置任务状态
+        isMissionBriefingShown = false;
+        isMissionSummaryShown = false;
 
         // 清除所有消息和延迟任务
         messageHandler.removeCallbacksAndMessages(null);
@@ -1139,6 +1147,150 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         System.out.println("🎯 GameActivity: 退出空袭模式");
     }
+    /**
+     * 显示任务简报
+     */
+    private void showMissionBriefing() {
+        runOnUiThread(() -> {
+            // 创建任务简报对话框
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MissionDialogTheme);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_mission, null);
+            builder.setView(dialogView);
+            builder.setCancelable(false);
+
+            missionDialog = builder.create();
+
+            // 设置对话框窗口属性
+            if (missionDialog.getWindow() != null) {
+                WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
+                layoutParams.copyFrom(missionDialog.getWindow().getAttributes());
+                // 宽度为屏幕宽度一半，高度占满屏幕
+                layoutParams.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.5);
+                layoutParams.height = WindowManager.LayoutParams.MATCH_PARENT;
+                layoutParams.gravity = Gravity.CENTER;
+                missionDialog.getWindow().setAttributes(layoutParams);
+                missionDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            }
+
+            // 初始化视图组件
+            TextView titleText = dialogView.findViewById(R.id.mission_title);
+            ImageView missionImage = dialogView.findViewById(R.id.mission_image);
+            TextView missionText = dialogView.findViewById(R.id.mission_text);
+
+            // 根据关卡设置内容
+            String title = "任务简报";
+            int imageResId = R.drawable.default_mission_pic; // 默认图片
+            String text = "default";
+
+            switch (currentLevelId) {
+                case 0: // 教程关
+                    imageResId = R.drawable.tutorial_pic;
+                    text = "这里是教程关，敌人要通过一个峡谷，你的任务是在这里击溃敌人，通过的敌人数量过多则任务失败\n点击屏幕继续";
+                    break;
+                case 1: // 第一关
+                    imageResId = R.drawable.level01_pic01;
+                    text = "德军已经迫近斯大林格勒城区，在马马耶夫高地上阻止他们，坚守高地上面的阵地，苏维埃空军可以支援你们\n点击屏幕继续";
+                    break;
+                default:
+                    imageResId = R.drawable.default_mission_pic;
+                    text = "default";
+                    break;
+            }
+
+            titleText.setText(title);
+            missionImage.setImageResource(imageResId);
+            missionText.setText(text);
+
+            // 设置点击事件
+            dialogView.setOnClickListener(v -> {
+                missionDialog.dismiss();
+                isMissionBriefingShown = true;
+
+                // 开始游戏
+                startGame();
+
+                // 如果是教程关卡，延迟触发第一个教程提示
+                if (gameEngine != null && gameEngine.isTutorialLevel()) {
+                    new Handler().postDelayed(() -> {
+                        if (gameEngine != null) {
+                            onTutorialStepStarted(GameEngine.TutorialState.WELCOME, "点击屏幕继续");
+                        }
+                    }, 500);
+                }
+            });
+
+            missionDialog.show();
+            System.out.println("GameActivity: 任务简报已显示");
+        });
+    }
+//=============任务简报显示===========================
+    /**
+     * 显示任务总结
+     */
+    private void showMissionSummary() {
+        runOnUiThread(() -> {
+            // 创建任务总结对话框
+            AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MissionDialogTheme);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_mission, null);
+            builder.setView(dialogView);
+            builder.setCancelable(false);
+
+            missionDialog = builder.create();
+
+            // 设置对话框窗口属性
+            if (missionDialog.getWindow() != null) {
+                WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
+                layoutParams.copyFrom(missionDialog.getWindow().getAttributes());
+                // 宽度为屏幕宽度一半，高度占满屏幕
+                layoutParams.width = (int) (getResources().getDisplayMetrics().widthPixels * 0.5);
+                layoutParams.height = WindowManager.LayoutParams.MATCH_PARENT;
+                layoutParams.gravity = Gravity.CENTER;
+                missionDialog.getWindow().setAttributes(layoutParams);
+                missionDialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            }
+
+            // 初始化视图组件
+            TextView titleText = dialogView.findViewById(R.id.mission_title);
+            ImageView missionImage = dialogView.findViewById(R.id.mission_image);
+            TextView missionText = dialogView.findViewById(R.id.mission_text);
+
+            // 根据关卡设置内容
+            String title = "任务总结";
+            int imageResId = R.drawable.default_mission_pic; // 默认图片
+            String text = "default";
+
+            switch (currentLevelId) {
+                case 0: // 教程关
+                    imageResId = R.drawable.tutorial_pic;
+                    text = "恭喜你出色地完成了任务\n点击继续";
+                    break;
+                case 1: // 第一关
+                    imageResId = R.drawable.level01_pic02;
+                    text = "我们成功的粉碎了德国人的企图，马马耶夫高地会永远铭记我们\n点击以继续";
+                    break;
+                default:
+                    imageResId = R.drawable.default_mission_pic;
+                    text = "default";
+                    break;
+            }
+
+            titleText.setText(title);
+            missionImage.setImageResource(imageResId);
+            missionText.setText(text);
+
+            // 设置点击事件
+            dialogView.setOnClickListener(v -> {
+                missionDialog.dismiss();
+                isMissionSummaryShown = true;
+
+                // 显示游戏胜利对话框
+                showGameWinMenu();
+            });
+
+            missionDialog.show();
+            System.out.println("GameActivity: 任务总结已显示");
+        });
+    }
     // =====================================================================
     // 游戏结束处理
     // =====================================================================
@@ -1362,7 +1514,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
     @Override
     public void onGameWon() {
-        showGameWinMenu();
+        runOnUiThread(() -> {
+            // 显示任务总结而不是直接显示胜利菜单
+            showMissionSummary();
+        });
     }
 
     /**
