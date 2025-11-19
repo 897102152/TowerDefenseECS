@@ -232,6 +232,9 @@ public class GameEngine {
             isHighlandControlled = true;
             lastHighlandCheckTime = 0;
             System.out.println("GameEngine: 第一关 - 启用高地区域争夺机制");
+        } else if (levelId == 2) { // 新增：第二关
+            maxEnemiesAllowed = 15; // 调整敌人上限
+            highlandArea = null;
         } else {
             maxEnemiesAllowed = 10; // 其他关卡默认值
             highlandArea = null; // 其他关卡没有高地
@@ -1349,4 +1352,6 @@ public class GameEngine {
     public int getHighlandEnemyThreshold() {
         return highlandEnemyThreshold;
     }
+
+
 }

@@ -11,6 +11,7 @@ public class SelectActivity extends AppCompatActivity {
 
     public static final int level_training = 0;  // 训练关id
     public static final int LEVEL_01 = 1;  // 正式关01 id
+    public static final int LEVEL_02 = 2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +29,7 @@ public class SelectActivity extends AppCompatActivity {
         // 从布局文件中找到按钮
         Button btntrainlevel = findViewById(R.id.btn_train);
         Button btnlevel01 = findViewById(R.id.btn_level01);
+        Button btnlevel02 = findViewById(R.id.btn_level02);
         ImageButton btnBack = findViewById(R.id.btnBack);
 
         // 设置返回按钮的点击事件监听器
@@ -56,6 +58,18 @@ public class SelectActivity extends AppCompatActivity {
             // 添加过渡动画
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         });
+
+        // 设置第二关按钮的点击事件监听器 - 修正关卡ID
+        btnlevel02.setOnClickListener(v -> {
+            Intent intent = new Intent(SelectActivity.this, com.example.towerdefense.view.GameActivity.class);
+            intent.putExtra("LEVEL_ID", LEVEL_02);  // 传递第二关ID
+            intent.putExtra("LEVEL_NAME", "第二关");
+            startActivity(intent);
+
+            // 添加过渡动画
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        });
+
     }
 
     /**

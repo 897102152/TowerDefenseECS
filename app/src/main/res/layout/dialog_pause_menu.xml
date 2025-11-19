@@ -39,6 +39,21 @@
         android:background="@drawable/button_pause_menu"
         android:layout_marginBottom="12dp"
         android:textSize="16sp" />
+    <!--
+       进入下一关按钮
+       - 默认设置为 android:visibility="gone"，在游戏胜利时通过代码显示
+       - 位于“重新开始”和“返回主菜单”之间
+     -->
+    <Button
+        android:id="@+id/btnNextLevel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/NextLevel"
+        android:textColor="@android:color/black"
+        android:background="@drawable/button_pause_menu"
+        android:layout_marginBottom="12dp"
+        android:textSize="16sp"
+        android:visibility="gone" />
 
     <!-- 返回主菜单按钮 -->
     <Button

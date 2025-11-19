@@ -12,6 +12,7 @@
     <string name="start_button">开始游戏</string>
     <string name="level_train">教学关\n</string>
     <string name="level_01">第一关\n</string>
+    <string name="level_02">第二关\n</string>
     <string name="level_list">关卡列表\n</string>
     <string name="settings">设置</string>
     <string name="supply_number">50</string>
@@ -23,6 +24,7 @@
     <string name="BackGame">回到游戏</string>
     <string name="RestartGame">重新开始</string>
     <string name="BacktoMainMenu">返回主菜单</string>
+    <string name="NextLevel">下一关</string>
     <string name="BacktoMain">返回</string>
     <string name="init_manpower">50</string>
     <string name="init_supply">50</string>
