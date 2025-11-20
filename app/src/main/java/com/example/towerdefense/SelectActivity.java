@@ -2,7 +2,10 @@ package com.example.towerdefense;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.Button;
 import android.widget.ImageButton;
 import androidx.appcompat.app.AppCompatActivity;
@@ -26,11 +29,17 @@ public class SelectActivity extends AppCompatActivity {
     }
 
     private void setupUI() {
-        // 从布局文件中找到按钮
-        Button btntrainlevel = findViewById(R.id.btn_train);
-        Button btnlevel01 = findViewById(R.id.btn_level01);
-        Button btnlevel02 = findViewById(R.id.btn_level02);
+        // 从布局文件中找到按钮 - 现在使用ImageButton
+        ImageButton btntrainlevel = findViewById(R.id.btn_train);
+        ImageButton btnlevel01 = findViewById(R.id.btn_level01);
+        ImageButton btnlevel02 = findViewById(R.id.btn_level02);
         ImageButton btnBack = findViewById(R.id.btnBack);
+
+        // 为所有按钮设置点击动画
+        setButtonClickAnimation(btntrainlevel);
+        setButtonClickAnimation(btnlevel01);
+        setButtonClickAnimation(btnlevel02);
+        setButtonClickAnimation(btnBack);
 
         // 设置返回按钮的点击事件监听器
         btnBack.setOnClickListener(v -> {
@@ -69,7 +78,30 @@ public class SelectActivity extends AppCompatActivity {
             // 添加过渡动画
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
         });
+    }
 
+    /**
+     * 为按钮设置点击动画效果
+     */
+    private void setButtonClickAnimation(ImageButton button) {
+        button.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        // 按下时开始动画
+                        Animation anim = AnimationUtils.loadAnimation(SelectActivity.this, R.anim.button_click);
+                        v.startAnimation(anim);
+                        break;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        // 释放时清除动画，让按钮恢复原状
+                        v.clearAnimation();
+                        break;
+                }
+                return false; // 返回false，不拦截事件，让onClickListener仍然可以工作
+            }
+        });
     }
 
     /**
