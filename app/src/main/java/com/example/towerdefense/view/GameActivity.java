@@ -20,6 +20,7 @@ import com.example.towerdefense.ecs.Entity;
 import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
 import android.os.Handler;
+import android.widget.Toast;
 
 /**
  * 游戏主活动 - 负责游戏界面的显示和用户交互
@@ -1193,7 +1194,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     break;
                 default:
                     imageResId = R.drawable.default_mission_pic;
-                    text = "default";
+                    text = "显示默认文本";
                     break;
             }
 

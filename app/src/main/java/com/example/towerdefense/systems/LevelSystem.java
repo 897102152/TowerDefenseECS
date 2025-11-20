@@ -256,14 +256,14 @@ public class LevelSystem extends ECSSystem {
 
         // 第一波 - 同时生成
         List<WaveConfig> wave1 = Arrays.asList(
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 3, 2.0f),
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 3, 2.0f)
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_A, 3, 2.0f),
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_B, 3, 2.0f)
         );
 
         // 第二波 - 同时生成
         List<WaveConfig> wave2 = Arrays.asList(
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 3, 2.0f),
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 3, 2.0f)
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_A, 3, 2.0f),
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_B, 3, 2.0f)
         );
 
         trainingWaves.add(wave1);
@@ -276,60 +276,60 @@ public class LevelSystem extends ECSSystem {
 
         // 第一波 - 三条路径同时生成敌人
         List<WaveConfig> level1Wave1 = Arrays.asList(
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 5, 1.5f),
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 5, 1.5f),
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_C, 5, 1.5f)
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_A, 5, 1.5f),
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_B, 5, 1.5f),
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_C, 5, 1.5f)
         );
 
         // 第二波 - 不同类型敌人在不同路径
         List<WaveConfig> level1Wave2 = Arrays.asList(
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 6, 2.0f),
-                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_B, 6, 3.0f),
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_C, 6, 2.0f)
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_A, 6, 2.0f),
+                new WaveConfig(Enemy.Type.Infantry, Path.PathTag.PATH_B, 6, 3.0f),
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_C, 6, 2.0f)
         );
 
         // 第三波 - Boss波
         List<WaveConfig> level1Wave3 = Arrays.asList(
-                new WaveConfig(Enemy.Type.TROLL, Path.PathTag.PATH_A, 3, 1f),
-                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_B, 6, 1.5f),
-                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_C, 6, 1.5f)
+                new WaveConfig(Enemy.Type.Armour, Path.PathTag.PATH_A, 3, 1f),
+                new WaveConfig(Enemy.Type.Infantry, Path.PathTag.PATH_B, 6, 1.5f),
+                new WaveConfig(Enemy.Type.Infantry, Path.PathTag.PATH_C, 6, 1.5f)
         );
 
         level1Waves.add(level1Wave1);
         level1Waves.add(level1Wave2);
         level1Waves.add(level1Wave3);
 
-        levelWaveConfigs.put(1, new LevelWaveConfig(trainingWaves, 10.0f));
+        levelWaveConfigs.put(1, new LevelWaveConfig(level1Waves, 10.0f));
 
-        // =========================================第一关波次配置================================================
+        // =========================================第二关波次配置================================================
         List<List<WaveConfig>> level2Waves = new ArrayList<>();
 
         // 第一波 - 三条路径同时生成敌人
         List<WaveConfig> level2Wave1 = Arrays.asList(
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 5, 1.5f),
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_B, 5, 1.5f),
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_C, 5, 1.5f)
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_A, 5, 1.5f),
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_B, 5, 1.5f),
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_C, 5, 1.5f)
         );
 
         // 第二波 - 不同类型敌人在不同路径
         List<WaveConfig> level2Wave2 = Arrays.asList(
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_A, 6, 2.0f),
-                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_B, 6, 3.0f),
-                new WaveConfig(Enemy.Type.GOBLIN, Path.PathTag.PATH_C, 6, 2.0f)
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_A, 6, 2.0f),
+                new WaveConfig(Enemy.Type.Infantry, Path.PathTag.PATH_B, 6, 3.0f),
+                new WaveConfig(Enemy.Type.Vehicle, Path.PathTag.PATH_C, 6, 2.0f)
         );
 
         // 第三波 - Boss波
         List<WaveConfig> level2Wave3 = Arrays.asList(
-                new WaveConfig(Enemy.Type.TROLL, Path.PathTag.PATH_A, 3, 1f),
-                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_B, 6, 1.5f),
-                new WaveConfig(Enemy.Type.ORC, Path.PathTag.PATH_C, 6, 1.5f)
+                new WaveConfig(Enemy.Type.Armour, Path.PathTag.PATH_A, 3, 1f),
+                new WaveConfig(Enemy.Type.Infantry, Path.PathTag.PATH_B, 6, 1.5f),
+                new WaveConfig(Enemy.Type.Infantry, Path.PathTag.PATH_C, 6, 1.5f)
         );
 
         level2Waves.add(level2Wave1);
         level2Waves.add(level2Wave2);
         level2Waves.add(level2Wave3);
 
-        levelWaveConfigs.put(2, new LevelWaveConfig(level1Waves, 15.0f));
+        levelWaveConfigs.put(2, new LevelWaveConfig(level2Waves, 15.0f));
     }
 
     /**
