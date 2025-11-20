@@ -4,11 +4,21 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <!-- 返回按钮 - 添加在左上角 -->
+
+    <!-- 背景图（放在最前面，层级最低） -->
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        app:srcCompat="@drawable/part_map"
+        android:contentDescription="@null" />
+
+    <!-- 返回按钮 - 左上角悬浮 -->
     <ImageButton
         android:id="@+id/btnBack"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:src="@drawable/back_to_main"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/BacktoMain"
@@ -16,55 +26,56 @@
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginTop="16dp"
         android:layout_marginStart="16dp" />
+
+    <!-- 关卡选择文本 - 右上角悬浮 -->
     <TextView
         android:id="@+id/str_selection"
         android:text="@string/level_list"
-        android:layout_width="250dp"
-        android:layout_height="100dp"
-        android:textSize="50sp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="25sp"
         android:textColor="@color/black"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="3dp"
-        android:layout_marginStart="200dp"
-    />
+        android:layout_marginEnd="16dp" />
 
 
     <Button
         android:id="@+id/btn_train"
-        android:layout_width="200dp"
+        android:layout_width="100dp"
         android:layout_height="50dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="8dp"
         android:text="@string/level_train"
         android:textSize="20sp"
-        app:layout_constraintTop_toBottomOf="@id/str_selection"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toStartOf="@id/btn_level01"
-        android:layout_marginTop="60dp"
-        android:layout_marginStart="60dp"
-       />
+        app:layout_constraintTop_toBottomOf="@id/str_selection" />
+
+    <!-- 关卡1按钮 - 完全独立定位 -->
+
+    <!-- 关卡2按钮 - 完全独立定位 -->
 
     <Button
         android:id="@+id/btn_level01"
-        android:layout_width="200dp"
+        android:layout_width="100dp"
         android:layout_height="50dp"
+        android:layout_marginStart="584dp"
+        android:layout_marginTop="332dp"
         android:text="@string/level_01"
         android:textSize="20sp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toEndOf="@id/btn_train"
-        android:layout_marginTop="160dp"
-        android:layout_marginStart="20dp"
-        />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <Button
         android:id="@+id/btn_level02"
-        android:layout_width="200dp"
+        android:layout_width="100dp"
         android:layout_height="50dp"
+        android:layout_marginTop="96dp"
+        android:layout_marginEnd="384dp"
         android:text="@string/level_02"
         android:textSize="20sp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toEndOf="@id/btn_level01"
-        android:layout_marginTop="160dp"
-        android:layout_marginStart="20dp"
-        />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

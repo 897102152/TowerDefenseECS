@@ -288,6 +288,7 @@ public class GameView extends View {
         if (infantryDrawable != null) infantryDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
         if (armourDrawable != null) armourDrawable.setBounds(0, 0, enemyIconSize, enemyIconSize);
     }
+
     /**
      * 加载抛射体矢量图资源
      */
@@ -937,50 +938,70 @@ public class GameView extends View {
     }
 
     /**
-     * 绘制炮兵炮弹 - 使用SVG图像，保持宽高比
+     * 绘制炮兵炮弹 - 使用SVG图像，保持宽高比，并使其朝向飞行方向。
+     * @param canvas 画布
+     * @param transform 炮弹实体的Transform组件（包含当前位置）
+     * @param projectileComp 炮弹实体的Projectile组件（包含目标位置）
      */
-    private void drawArtilleryProjectile(Canvas canvas, Transform transform, Projectile projectile) {
-        if (artilleryProjectileDrawable != null) {
-            try {
-                // 获取Drawable的实际尺寸
-                int drawableWidth = artilleryProjectileDrawable.getBounds().width();
-                int drawableHeight = artilleryProjectileDrawable.getBounds().height();
-
-                // 保存画布状态
-                canvas.save();
-
-                // 移动到抛射体位置
-                canvas.translate(transform.x, transform.y);
-
-                // 计算飞行方向角度
-                float angle = calculateProjectileAngle(projectile);
-                canvas.rotate(angle);
-
-                // 使用实际尺寸计算绘制位置（使图像中心与抛射体位置对齐）
-                int left = -drawableWidth / 2;
-                int top = -drawableHeight / 2;
-
-                // 设置Drawable边界并绘制
-                artilleryProjectileDrawable.setBounds(
-                        left, top,
-                        left + drawableWidth,
-                        top + drawableHeight
-                );
-                artilleryProjectileDrawable.draw(canvas);
-
-                // 恢复画布状态
-                canvas.restore();
-
-            } catch (Exception e) {
-                System.err.println("GameView: 绘制炮兵炮弹时发生异常: " + e.getMessage());
-                drawFallbackProjectile(canvas, transform);
-            }
-        } else {
-            // 备用：蓝色圆形
-            paint.setColor(Color.BLUE);
-            paint.setStyle(Paint.Style.FILL);
-            canvas.drawCircle(transform.x, transform.y, 8f, paint);
+    private void drawArtilleryProjectile(Canvas canvas, Transform transform, Projectile projectileComp) {
+        if (artilleryProjectileDrawable == null) {
+            drawFallbackProjectile(canvas, transform); // 如果图标加载失败，使用备用方案
+            return;
         }
+
+        // 1. 获取炮弹当前位置和目标位置
+        float currentX = transform.x;
+        float currentY = transform.y;
+        float targetX = projectileComp.targetX;
+        float targetY = projectileComp.targetY;
+
+        // 2. 计算从当前位置到目标位置的方向向量
+        float deltaX = targetX - currentX;
+        float deltaY = targetY - currentY;
+
+        // 计算向量的长度（距离），如果距离过近，避免计算角度时出现问题
+        double distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        if (distance < 1.0f) { // 距离非常近，可以认为已经命中
+            // 可以在这里绘制一个命中效果，或者直接不绘制
+            return;
+        }
+
+        // 3. 计算方向角度
+        // atan2(deltaY, deltaX) 返回的是从X轴正方向到该向量的角度（弧度）
+        // 例如：向右是0弧度，向上是π/2弧度，向左是π弧度，向下是-π/2或3π/2弧度
+        double radians = Math.atan2(deltaY, deltaX);
+
+        // 将弧度转换为角度
+        float angleInDegrees = (float) Math.toDegrees(radians);
+
+        // --- 非常重要的一步 ---
+        // 你需要根据炮弹图片（artilleryProjectileDrawable）的原始朝向来调整这个角度。
+        // 例如：
+        // - 如果图片是朝右的（→），那么 angleInDegrees 就不需要调整。
+        // - 如果图片是朝上的（↑），那么你需要减去90度：angleInDegrees -= 90f;
+        // - 如果图片是朝下的（↓），那么你需要加上90度：angleInDegrees += 90f;
+        // 假设图片是朝右的，这里加90度，让它朝上发射时图片也是朝上的。
+        // 你需要根据你的实际图片来微调这个值！
+        angleInDegrees += 90f;
+
+        // 4. 保存画布状态
+        canvas.save();
+
+        // 5. 将画布原点移动到炮弹的中心，并旋转
+        canvas.translate(currentX, currentY);
+        canvas.rotate(angleInDegrees);
+
+        // 6. 绘制炮弹
+        // 因为画布已经移动和旋转，我们只需要在原点绘制即可。
+        // setBounds的参数是 (left, top, right, bottom)
+        int drawWidth = artilleryProjectileDrawable.getIntrinsicWidth();
+        int drawHeight = artilleryProjectileDrawable.getIntrinsicHeight();
+        // 让图片的中心点在原点 (0,0)
+        artilleryProjectileDrawable.setBounds(-drawWidth / 2, -drawHeight / 2, drawWidth / 2, drawHeight / 2);
+        artilleryProjectileDrawable.draw(canvas);
+
+        // 7. 恢复画布状态
+        canvas.restore();
     }
 
     /**

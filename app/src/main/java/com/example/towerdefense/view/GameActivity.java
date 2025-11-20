@@ -1192,9 +1192,13 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     imageResId = R.drawable.level01_pic01;
                     text = "德军已经迫近斯大林格勒城区，在马马耶夫高地上阻止他们，坚守高地上面的阵地，苏维埃空军可以支援你们\n点击屏幕继续";
                     break;
+                case 2: // 第2关
+                    imageResId = R.drawable.level01_pic01;
+                    text = "德军正在围攻列宁格勒，请积极防御，粉碎他们的战略意图\n点击屏幕继续";
+                    break;
                 default:
                     imageResId = R.drawable.default_mission_pic;
-                    text = "default";
+                    text = "显示默认文本";
                     break;
             }
 
@@ -1268,6 +1272,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 case 1: // 第一关
                     imageResId = R.drawable.level01_pic02;
                     text = "我们成功的粉碎了德国人的企图，马马耶夫高地会永远铭记我们\n点击以继续";
+                    break;
+                case 2: // 第一关
+                    imageResId = R.drawable.level01_pic02;
+                    text = "我们成功保卫了列宁格勒，这对这场战争来说意义重大\n点击以继续";
                     break;
                 default:
                     imageResId = R.drawable.default_mission_pic;
