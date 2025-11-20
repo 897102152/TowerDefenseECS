@@ -33,4 +33,5 @@
     <string name="tutorial_content">教程内容</string>
     <string name="hint">提示信息</string>
     <string name="build_remove">取消部署</string>
+    <string name="quit_game">退出游戏</string>
 </resources>
