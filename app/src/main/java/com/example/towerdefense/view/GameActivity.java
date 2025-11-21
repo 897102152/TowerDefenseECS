@@ -21,7 +21,7 @@ import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
 import android.os.Handler;
 import android.widget.Toast;
-
+import com.example.towerdefense.managers.AudioManager;
 /**
  * 游戏主活动 - 负责游戏界面的显示和用户交互
  * 实现GameUpdateListener接口，接收游戏状态更新回调
@@ -116,6 +116,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         if (!isGamePaused && gameEngine != null) {
             gameEngine.pauseGame();
         }
+        // [新增] 暂停背景音乐
+        if (gameEngine != null) {
+            gameEngine.getAudioManager().pauseBgm();
+        }
     }
 
     @Override
@@ -124,6 +128,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 恢复教程显示（如果有中断的教程）
         if (gameEngine != null && gameEngine.isTutorialLevel()) {
             gameEngine.resumeTutorialDisplay();
+        }
+        // [新增] 恢复背景音乐
+        if (gameEngine != null) {
+            gameEngine.getAudioManager().resumeBgm();
         }
     }
 
@@ -136,6 +144,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         }
         if (gameEngine != null) {
             gameEngine.stopGame();
+            gameEngine.release(); // <-- [新增] 调用 GameEngine 的 release 方法，释放所有音频资源
         }
     }
 
@@ -152,6 +161,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
             airSupportCounter = counter;
             updateAirSupportButton();
         });
+        // [新增] 只有当计数器达到阈值时才播放音效
+        if (counter == threshold) {
+            if (gameEngine != null) gameEngine.getAudioManager().playAirRaid();
+        }
     }
     //================level Highland相关回调=======================================
     /**
@@ -402,6 +415,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         btnStartGame = findViewById(R.id.btnStartGame);
         if (btnStartGame != null) {
             btnStartGame.setOnClickListener(v -> {
+                if (gameEngine != null) gameEngine.getAudioManager().playClick(); // [新增点击音效]
                 startGameWave();
             });
 
@@ -416,6 +430,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // ========== 建造模式主按钮 ==========
         findViewById(R.id.btnBuildMode).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick(); // [新增点击音效]
             toggleBuildMode();
         });
 
@@ -423,6 +438,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 弓箭塔选择按钮
         View btnArcherTower = findViewById(R.id.btnArcherTower);
         btnArcherTower.setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             gameView.setSelectedTowerType(Tower.Type.Infantry);
             setButtonSelected(btnArcherTower);
         });
@@ -430,6 +446,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 炮塔选择按钮
         View btnCannonTower = findViewById(R.id.btnCannonTower);
         btnCannonTower.setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             gameView.setSelectedTowerType(Tower.Type.Anti_tank);
             setButtonSelected(btnCannonTower);
         });
@@ -437,6 +454,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 法师塔选择按钮
         View btnMageTower = findViewById(R.id.btnMageTower);
         btnMageTower.setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             gameView.setSelectedTowerType(Tower.Type.Artillery);
             setButtonSelected(btnMageTower);
         });
@@ -444,6 +462,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         // 移除按钮 - 新增移除功能
         View btnBuildRemove = findViewById(R.id.btnBuildRemove);
         btnBuildRemove.setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             if (gameView.isRemoveMode()) {
                 // 如果已经在移除模式，则退出移除模式
                 gameView.setRemoveMode(false);
@@ -465,6 +484,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 设置按钮
         findViewById(R.id.btnSettings).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             showPauseMenu();
         });
 
@@ -752,12 +772,14 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private void setupPauseMenuButtons(View dialogView) {
         // 回到游戏按钮
         dialogView.findViewById(R.id.btnResume).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             System.out.println("GameActivity监听器: 已点击回到游戏按钮");
             resumeGameFromPause();
         });
 
         // 重新开始按钮
         dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             System.out.println("GameActivity监听器: 已点击重新开始按钮");
             pauseDialog.dismiss();
             restartGame();
@@ -765,6 +787,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
 
         // 返回主菜单按钮
         dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             returnToMainMenu();
         });
     }
@@ -774,8 +797,10 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
      */
     private void showPauseMenu() {
         if (pauseDialog != null && !pauseDialog.isShowing()) {
+
             // 暂停游戏
             pauseGame();
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             // 显示暂停菜单
             pauseDialog.show();
             isGamePaused = true;
@@ -833,6 +858,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         if (tutorialOverlay != null) {
             System.out.println("GameActivity：教学点击监听器已设置");
             tutorialOverlay.setOnClickListener(v -> {
+                if (gameEngine != null) gameEngine.getAudioManager().playClick();
                 System.out.println("GameActivity: 教程提示框被点击");
                 System.out.println("GameActivity: isShowingTutorial=" + isShowingTutorial + ", isShowingMessage=" + isShowingMessage);
 
@@ -1348,12 +1374,14 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private void setupGameOverMenuButtons(View dialogView, AlertDialog dialog) {
         // 重新开始按钮
         dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             dialog.dismiss();
             restartGame();
         });
 
         // 返回主菜单按钮
         dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             dialog.dismiss();
             returnToMainMenu();
         });
@@ -1384,6 +1412,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
         onBackPressedCallback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                if (gameEngine != null) gameEngine.getAudioManager().playClick();
                 // 如果暂停菜单正在显示，则关闭它
                 if (pauseDialog != null && pauseDialog.isShowing()) {
                     resumeGameFromPause();
@@ -1592,12 +1621,14 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
     private void setupGameWinMenuButtons(View dialogView, AlertDialog dialog) {
         // 重新开始按钮
         dialogView.findViewById(R.id.btnRestart).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             dialog.dismiss();
             restartGame();
         });
 
         // 返回主菜单按钮
         dialogView.findViewById(R.id.btnMainMenu).setOnClickListener(v -> {
+            if (gameEngine != null) gameEngine.getAudioManager().playClick();
             dialog.dismiss();
             returnToMainMenu();
         });

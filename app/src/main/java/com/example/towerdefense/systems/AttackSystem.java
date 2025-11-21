@@ -8,6 +8,7 @@ import com.example.towerdefense.components.Enemy;
 import com.example.towerdefense.components.Projectile;
 import com.example.towerdefense.managers.ResourceManager;
 import com.example.towerdefense.GameEngine; // 添加这行导入
+import com.example.towerdefense.managers.AudioManager;
 import java.util.List;
 
 /**
@@ -17,6 +18,7 @@ import java.util.List;
  */
 public class AttackSystem extends ECSSystem {
     private ResourceManager resourceManager;
+    private AudioManager audioManager;
     private GameEngine gameEngine; // 添加GameEngine引用
     public void setGameEngine(GameEngine gameEngine) {
         this.gameEngine = gameEngine;
@@ -137,7 +139,8 @@ public class AttackSystem extends ECSSystem {
                 Entity projectile = world.createEntity();
                 projectile.addComponent(new Transform(towerTransform.x, towerTransform.y));
                 projectile.addComponent(new Projectile(target, damage, projectileSpeed, towerComp.type));
-
+                // [新增音效] 播放弓箭发射音效
+                if (audioManager != null) audioManager.playShootArrow();
                 System.out.println("AttackSystem: 弓箭塔发射追踪弹道，速度: " + projectileSpeed);
                 break;
 
@@ -150,7 +153,8 @@ public class AttackSystem extends ECSSystem {
                 Entity cannonProjectile = world.createEntity();
                 cannonProjectile.addComponent(new Transform(towerTransform.x, towerTransform.y));
                 cannonProjectile.addComponent(new Projectile(targetX, targetY, damage, projectileSpeed, true, cannonAreaRadius, towerComp.type));
-
+                // [新增音效] 播放炮击音效
+                if (audioManager != null) audioManager.playShootCannon();
                 System.out.println("AttackSystem: 炮塔发射范围伤害弹道，速度: " + projectileSpeed + ", 范围半径: " + cannonAreaRadius);
                 break;
 
@@ -163,9 +167,11 @@ public class AttackSystem extends ECSSystem {
                 Entity mageProjectile = world.createEntity();
                 mageProjectile.addComponent(new Transform(towerTransform.x, towerTransform.y));
                 mageProjectile.addComponent(new Projectile(targetX, targetY, damage, projectileSpeed, true, mageAreaRadius, towerComp.type));
-
+                // [新增音效] 播放炮击音效
+                if (audioManager != null) audioManager.playShootCannon();
                 System.out.println("AttackSystem: 法师塔发射范围伤害弹道，速度: " + projectileSpeed + ", 范围半径: " + mageAreaRadius);
                 break;
         }
     }
+
 }

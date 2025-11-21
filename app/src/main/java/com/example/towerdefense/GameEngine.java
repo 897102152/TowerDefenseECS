@@ -16,7 +16,7 @@ import com.example.towerdefense.systems.AttackSystem;
 import com.example.towerdefense.systems.SpawnSystem;
 import com.example.towerdefense.systems.LevelSystem;
 import com.example.towerdefense.managers.ResourceManager;
-
+import com.example.towerdefense.managers.AudioManager;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.List;
@@ -87,6 +87,7 @@ public class GameEngine {
     private long lastHighlandCheckTime = 0; // 上次检查高地状态的时间
     private static final long HIGHLAND_CHECK_INTERVAL = 500; // 检查间隔（毫秒）
 
+    private AudioManager audioManager;
     // =====================================================================
     // 接口定义
     // =====================================================================
@@ -122,7 +123,8 @@ public class GameEngine {
 
         // 初始化资源管理器
         resourceManager = new ResourceManager(context);
-
+        // 初始化音频管理器
+        this.audioManager = new AudioManager(context);
         // 设置资源变化监听器
         resourceManager.setResourceChangeListener(new ResourceManager.ResourceChangeListener() {
             @Override
@@ -316,6 +318,7 @@ public class GameEngine {
         };
         gameHandler.post(gameLoop);
         updateGame();
+        audioManager.playBgm();
     }
 
     private void updateGame() {
@@ -348,6 +351,7 @@ public class GameEngine {
         if (gameLoop != null) {
             gameHandler.removeCallbacks(gameLoop);
         }
+        audioManager.pauseBgm();
         System.out.println("GameEngine: 游戏已暂停");
 
         // 中断教程显示
@@ -363,6 +367,7 @@ public class GameEngine {
         if (!isRunning) {
             startGame();
         }
+        audioManager.resumeBgm();
         System.out.println("GameEngine: 游戏已恢复");
     }
 
@@ -374,6 +379,7 @@ public class GameEngine {
         if (gameLoop != null) {
             gameHandler.removeCallbacks(gameLoop);
         }
+        audioManager.stopBgm();
         System.out.println("GameEngine: 游戏已停止");
     }
 
@@ -391,6 +397,7 @@ public class GameEngine {
 
         if (allWavesCompleted && noEnemiesRemaining) {
             isGameWon = true;
+            audioManager.playVictory();
             System.out.println("GameEngine: 游戏胜利！所有敌人都被消灭");
 
             // 暂停游戏
@@ -441,7 +448,7 @@ public class GameEngine {
                 // 返还人力（不返还补给）
                 resourceManager.addManpower(towerComp.manpowerCost);
                 System.out.println("GameEngine: 通过ID移除防御塔 " + towerComp.type + "，返还人力:" + towerComp.manpowerCost);
-
+                audioManager.playBuild();
                 // 从世界中移除实体
                 world.removeEntity(towerToRemove);
 
@@ -481,6 +488,7 @@ public class GameEngine {
      * 敌人被击败时调用（由AttackSystem调用）
      */
     public void onEnemyDefeated(Enemy enemy) {
+        audioManager.playExplosion();
         if (!enemy.rewardGiven) {
             // 发放补给奖励
             resourceManager.addSupply(enemy.reward);
@@ -513,6 +521,7 @@ public class GameEngine {
         // 检查是否游戏失败
         if (enemiesReachedEnd >= maxEnemiesAllowed) {
             isGameOver = true;
+            audioManager.playDefeat();
             System.out.println("GameEngine: 游戏失败！到达终点的敌人数量超过限制");
 
             // 暂停游戏
@@ -1221,7 +1230,7 @@ public class GameEngine {
      */
     public void removeTower(float x, float y) {
         System.out.println("GameEngine: 尝试移除位置 (" + x + ", " + y + ") 的防御塔");
-
+        audioManager.playBuild();
         // 查找点击位置附近的防御塔
         Entity towerToRemove = findTowerAtPosition(x, y);
 
@@ -1491,7 +1500,15 @@ public class GameEngine {
     public boolean isTutorialLevel() {
         return isTutorialLevel;
     }
+    public AudioManager getAudioManager() { // <-- [新增 Getter]
+        return audioManager;
+    }
 
+    public void release() { // <-- [新增 Release]
+        if (audioManager != null) {
+            audioManager.release();
+        }
+    }
     public int getEnemiesReachedEnd() {
         return enemiesReachedEnd;
     }
