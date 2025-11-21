@@ -1219,7 +1219,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     text = "德军已经迫近斯大林格勒城区，在马马耶夫高地上阻止他们，坚守高地上面的阵地，苏维埃空军可以支援你们\n点击屏幕继续";
                     break;
                 case 2: // 第2关
-                    imageResId = R.drawable.level01_pic01;
+                    imageResId = R.drawable.level02_pic01;
                     text = "德军正在围攻列宁格勒，请积极防御，粉碎他们的战略意图\n点击屏幕继续";
                     break;
                 default:
@@ -1244,7 +1244,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 if (gameEngine != null && gameEngine.isTutorialLevel()) {
                     new Handler().postDelayed(() -> {
                         if (gameEngine != null) {
-                            onTutorialStepStarted(GameEngine.TutorialState.WELCOME, "点击屏幕继续");
+                            onTutorialStepStarted(GameEngine.TutorialState.WELCOME, "点击此处继续");
                         }
                     }, 500);
                 }
@@ -1300,7 +1300,7 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                     text = "我们成功的粉碎了德国人的企图，马马耶夫高地会永远铭记我们\n点击以继续";
                     break;
                 case 2: // 第一关
-                    imageResId = R.drawable.level01_pic02;
+                    imageResId = R.drawable.level02_pic02;
                     text = "我们成功保卫了列宁格勒，这对这场战争来说意义重大\n点击以继续";
                     break;
                 default:
@@ -1491,30 +1491,30 @@ public class GameActivity extends AppCompatActivity implements GameEngine.GameUp
                 case WELCOME:
                     showTutorialMessage("欢迎进入教程关",
                             "游戏目标：部署兵力阻止敌人到达终点\n每个敌人到达终点会扣除生命值",
-                            "点击屏幕继续");
+                            "点击此处继续");
                     break;
 
                 case RESOURCE_EXPLANATION:
                     showTutorialMessage("资源系统",
                             "人力：用于建造防御塔\n补给：通过击败敌人获得\n当前资源显示在左上角",
-                            "点击屏幕继续");
+                            "点击此处继续");
                     break;
 
                 case DEPLOY_INFANTRY:
                     showTutorialMessage("建造防御塔",
-                            "请按照引导部署士兵:1. 点击右下角部署按钮; 2. 选择步兵; 3. 点击合适位置部署",
+                            "请按照引导部署士兵:1. 点击右下角部署按钮; 2. 选择步兵，带有交叉线的矩形框代表步兵; 3. 点击合适位置部署",
                             "部署花费10人力，5补给");
                     break;
 
                 case DEPLOY_ANTI_TANK:
                     showTutorialMessage("继续部署",
-                            "很好！现在请部署反坦克兵，他们会对装甲造成更高伤害",
+                            "很好！现在请部署反坦克兵，带有折线的矩形框代表反坦克兵\n他们会对装甲造成更高伤害",
                             "部署花费20人力，15补给");
                     break;
 
                 case DEPLOY_ARTILLERY:
                     showTutorialMessage("继续部署",
-                            "最后部署炮兵，注意他们只能攻击远处敌人",
+                            "最后部署炮兵，带有黑色圆点的矩形框代表炮兵\n注意他们只能攻击远处敌人",
                             "部署花费15人力，10补给");
                     break;
 

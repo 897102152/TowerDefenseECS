@@ -553,7 +553,7 @@ public class GameEngine {
         tutorialHandler.postDelayed(() -> {
             System.out.println("GameEngine: 延迟显示第一个教程提示");
             if (updateListener != null) {
-                updateListener.onTutorialStepStarted(tutorialState, "点击屏幕继续");
+                updateListener.onTutorialStepStarted(tutorialState, "点击此处继续");
             }
         }, 500);
     }
